@@ -10,7 +10,7 @@ const API = (() => {
   // ── CONFIGURAÇÃO ──────────────────────────────────────────────
   const CONFIG = {
     // Após publicar o Apps Script como Web App, cole a URL aqui:
-    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxDt-K_KpWcheP-ck6wzinHMhpLr1wtsSoCrktaaFu7hJAuRS2EBQY4MxkgmlnB36SVdQ/exec',
+    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycby8WHDnBF1EtEUiJwNoc6vPLtxneOgWp_9wZI0IbaJrSbQHYWoDymZrtlBbgXuig4pYmw/exec',
 
     // ID da planilha do Google Sheets
     SHEET_ID: '1_PB62JPwuM-uRA-_4T6T25JQHny4AKOfr71RcJ43Tds',
@@ -47,8 +47,8 @@ const API = (() => {
     CONFIG,
 
     // ── Auth ──
-    login: (usuario, senhaHash) =>
-      request('login', { usuario, senhaHash }, 'POST'),
+    login: (usuario, senha) =>
+      request('login', { usuario, senha }, 'POST'),
 
     // ── Atividades ──
     getAtividades: (filtros = {}) =>
