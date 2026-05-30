@@ -1,0 +1,66 @@
+/* Admin layout extras */
+.admin-tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--gray-200); margin-bottom: 1.5rem; overflow-x: auto; }
+.admin-tab {
+  padding: 10px 18px; font-size: 0.875rem; font-weight: 500; cursor: pointer;
+  color: var(--gray-500); border: none; background: none; white-space: nowrap;
+  border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s;
+}
+.admin-tab:hover { color: var(--primary); }
+.admin-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+.section-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; flex-wrap: wrap; }
+.section-toolbar h2 { flex: 1; }
+.search-input-wrap { position: relative; }
+.search-input-wrap input { padding-left: 32px; width: 220px; }
+.search-input-wrap svg { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--gray-400); }
+
+/* Import area */
+.import-dropzone {
+  border: 2.5px dashed var(--gray-300); border-radius: var(--radius-lg);
+  padding: 40px; text-align: center; cursor: pointer;
+  transition: all 0.15s; background: var(--gray-50); margin-bottom: 1rem;
+}
+.import-dropzone:hover, .import-dropzone.drag-over { border-color: var(--primary); background: var(--primary-light); }
+.import-dropzone input { display: none; }
+.import-dropzone p { color: var(--gray-500); font-size: 0.875rem; margin-top: 8px; }
+
+.import-preview { background: #fff; border: 1px solid var(--gray-200); border-radius: var(--radius-lg); overflow: hidden; }
+.import-preview-header { padding: 12px 16px; background: var(--gray-50); border-bottom: 1px solid var(--gray-200); font-size: 0.875rem; font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+
+/* Passos builder */
+.passos-list { list-style: none; }
+.passo-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0; border-bottom: 1px solid var(--gray-100);
+}
+.passo-num { width: 22px; height: 22px; border-radius: 50%; background: var(--gray-200); color: var(--gray-600); font-size: 0.7rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.passo-input { flex: 1; padding: 6px 10px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 0.875rem; font-family: var(--font); }
+.passo-input:focus { outline: none; border-color: var(--primary); }
+.passo-drag { color: var(--gray-300); cursor: grab; }
+.passo-remove { color: var(--gray-300); cursor: pointer; background: none; border: none; padding: 4px; transition: color 0.12s; }
+.passo-remove:hover { color: var(--danger); }
+
+/* HH config */
+.hh-config-card { background: #fff; border: 1px solid var(--gray-200); border-radius: var(--radius-lg); padding: 1.25rem; }
+.hh-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.hh-item label { font-size: 0.8rem; color: var(--gray-600); font-weight: 500; }
+.hh-item .big-num { font-size: 2rem; font-weight: 600; color: var(--gray-900); }
+.hh-item .unit { font-size: 0.9rem; color: var(--gray-400); }
+
+/* Toggle switch */
+.toggle-wrap { display: flex; align-items: center; gap: 8px; }
+.toggle { position: relative; width: 36px; height: 20px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; inset: 0; background: var(--gray-300); border-radius: 99px; cursor: pointer; transition: 0.15s; }
+.toggle-slider::before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: 0.15s; }
+.toggle input:checked + .toggle-slider { background: var(--success); }
+.toggle input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+/* Motivos list */
+.motivo-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #fff; border: 1px solid var(--gray-200); border-radius: var(--radius); margin-bottom: 6px; }
+.motivo-cat { font-size: 0.72rem; padding: 2px 8px; border-radius: 99px; background: var(--primary-light); color: var(--primary); font-weight: 600; white-space: nowrap; }
+
+@media (max-width: 600px) {
+  .search-input-wrap input { width: 160px; }
+  .form-row { grid-template-columns: 1fr; }
+}
