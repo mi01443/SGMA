@@ -1,42 +1,31 @@
 /**
  * api.js — Comunicação com Google Apps Script
- * Todas as chamadas ao backend passam por este módulo.
+ * TODAS as requisições usam GET para evitar CORS preflight.
  *
- * CONFIGURAÇÃO: defina a URL do seu Apps Script deployado em CONFIG abaixo.
+ * CONFIGURAÇÃO: preencha SCRIPT_URL com a URL do seu Apps Script deployado.
  */
 
 const API = (() => {
 
   // ── CONFIGURAÇÃO ──────────────────────────────────────────────
   const CONFIG = {
-    // Após publicar o Apps Script como Web App, cole a URL aqui:
-    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzyD2fPVrS4ZBmtuzZRNtnkoksRNYKfjD92aMr5vRVfUChnsR_tTZtHFszw-XTj1riUvw/exec',
-
-    // ID da planilha do Google Sheets
-    SHEET_ID: '1_PB62JPwuM-uRA-_4T6T25JQHny4AKOfr71RcJ43Tds',
-
-    // ID da pasta raiz no Google Drive
-    DRIVE_ROOT_ID: '1rwfnNUfV_R9ts2mSf7WcMYrX7TeTS0no',
+    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycby0Eits8L8NlkcTmkujRW6-ZOHpF5i9JqUfpEy5coVTgV-fS2TjWY9HvtAXQXHmR9pIxg/exec',
   };
   // ──────────────────────────────────────────────────────────────
 
   const token = () => sessionStorage.getItem('token') || '';
 
-  async function request(action, params = {}, method = 'GET') {
+  async function request(action, params = {}) {
     const url = new URL(CONFIG.SCRIPT_URL);
     url.searchParams.set('action', action);
     url.searchParams.set('token', token());
 
-    const opts = { method };
+    // Serializa cada parâmetro — objetos/arrays viram JSON string
+    Object.entries(params).forEach(([k, v]) => {
+      url.searchParams.set(k, typeof v === 'object' ? JSON.stringify(v) : v);
+    });
 
-    if (method === 'GET') {
-      Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-    } else {
-      opts.headers = { 'Content-Type': 'application/json' };
-      opts.body = JSON.stringify({ ...params, token: token() });
-    }
-
-    const res = await fetch(url.toString(), opts);
+    const res = await fetch(url.toString());
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
@@ -48,81 +37,81 @@ const API = (() => {
 
     // ── Auth ──
     login: (usuario, senha) =>
-      request('login', { usuario, senha }, 'POST'),
+      request('login', { usuario, senha }),
 
     // ── Atividades ──
     getAtividades: (filtros = {}) =>
-      request('getAtividades', filtros, 'GET'),
+      request('getAtividades', filtros),
 
     saveAtividade: (dados) =>
-      request('saveAtividade', dados, 'POST'),
+      request('saveAtividade', dados),
 
     deleteAtividade: (id) =>
-      request('deleteAtividade', { id }, 'POST'),
+      request('deleteAtividade', { id }),
 
     importAtividades: (lista) =>
-      request('importAtividades', { lista }, 'POST'),
+      request('importAtividades', { lista: JSON.stringify(lista) }),
 
     // ── Passos / checklist ──
     updatePasso: (atividadeId, passoId, concluido) =>
-      request('updatePasso', { atividadeId, passoId, concluido }, 'POST'),
+      request('updatePasso', { atividadeId, passoId, concluido }),
 
     // ── Execuções ──
     saveExecucao: (dados) =>
-      request('saveExecucao', dados, 'POST'),
+      request('saveExecucao', dados),
 
     getExecucoes: (filtros = {}) =>
-      request('getExecucoes', filtros, 'GET'),
+      request('getExecucoes', filtros),
 
     // ── Fotos ──
     uploadFoto: (base64, mimeType, equipamentoId, atividadeId, lado) =>
-      request('uploadFoto', { base64, mimeType, equipamentoId, atividadeId, lado }, 'POST'),
+      request('uploadFoto', { base64, mimeType, equipamentoId, atividadeId, lado }),
 
     // ── Equipamentos ──
     getEquipamentos: () =>
-      request('getEquipamentos', {}, 'GET'),
+      request('getEquipamentos'),
 
     saveEquipamento: (dados) =>
-      request('saveEquipamento', dados, 'POST'),
+      request('saveEquipamento', dados),
 
     toggleEquipamento: (id, ativo) =>
-      request('toggleEquipamento', { id, ativo }, 'POST'),
+      request('toggleEquipamento', { id, ativo }),
 
     // ── Profissionais ──
     getProfissionais: () =>
-      request('getProfissionais', {}, 'GET'),
+      request('getProfissionais'),
 
     saveProfissional: (dados) =>
-      request('saveProfissional', dados, 'POST'),
+      request('saveProfissional', dados),
 
     toggleProfissional: (id, ativo) =>
-      request('toggleProfissional', { id, ativo }, 'POST'),
+      request('toggleProfissional', { id, ativo }),
 
     // ── Semanas ──
     getSemanas: () =>
-      request('getSemanas', {}, 'GET'),
+      request('getSemanas'),
 
     getSemana: (id) =>
-      request('getSemana', { id }, 'GET'),
+      request('getSemana', { id }),
 
     saveSemana: (dados) =>
-      request('saveSemana', dados, 'POST'),
+      request('saveSemana', dados),
 
     // ── Motivos ──
     getMotivos: () =>
-      request('getMotivos', {}, 'GET'),
+      request('getMotivos'),
 
     saveMotivo: (dados) =>
-      request('saveMotivo', dados, 'POST'),
+      request('saveMotivo', dados),
 
     deleteMotivo: (id) =>
-      request('deleteMotivo', { id }, 'POST'),
+      request('deleteMotivo', { id }),
 
     // ── Relatório ──
     getRelatorio: (filtros = {}) =>
-      request('getRelatorio', filtros, 'GET'),
+      request('getRelatorio', filtros),
 
     gerarPDF: (filtros = {}) =>
-      request('gerarPDF', filtros, 'POST'),
+      request('gerarPDF', filtros),
   };
 })();
