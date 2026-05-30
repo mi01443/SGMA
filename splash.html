@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGMA</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: #0f172a; font-family: 'DM Sans', sans-serif;
+    }
+    .splash { display: flex; flex-direction: column; align-items: center; animation: up 0.6s ease; }
+    @keyframes up { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+
+    .ring {
+      position: relative; width: 180px; height: 180px;
+      display: flex; align-items: center; justify-content: center; margin-bottom: 28px;
+    }
+    .ring::before {
+      content:''; position:absolute; inset:0; border-radius:50%;
+      border: 2px solid rgba(26,86,219,0.45);
+    }
+    .ring::after {
+      content:''; position:absolute; inset:14px; border-radius:50%;
+      border: 1px solid rgba(26,86,219,0.2);
+    }
+    .badge {
+      width: 118px; height: 118px; background: #1a56db; border-radius: 24px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      position: relative; z-index: 1;
+    }
+    .initials { font-size: 38px; font-weight: 700; color: #fff; letter-spacing: 5px; line-height: 1; }
+    .divider  { width: 56px; height: 1.5px; background: rgba(255,255,255,0.3); margin: 7px 0; }
+    .badge-sub { font-size: 9px; color: rgba(255,255,255,0.55); letter-spacing: 2.5px; }
+
+    .name { font-size: 30px; font-weight: 700; color: #fff; letter-spacing: 8px; margin-bottom: 6px; }
+    .fullname { font-size: 10px; color: #475569; letter-spacing: 2px; text-align: center; margin-bottom: 44px; }
+
+    .dots { display: flex; gap: 8px; }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #1a56db;
+      animation: blink 1.4s ease-in-out infinite;
+    }
+    .dot:nth-child(2) { animation-delay: .2s; }
+    .dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes blink { 0%,80%,100%{opacity:.25;transform:scale(.75);} 40%{opacity:1;transform:scale(1);} }
+  </style>
+</head>
+<body>
+  <div class="splash">
+    <div class="ring">
+      <div class="badge">
+        <div class="initials">RGS</div>
+        <div class="divider"></div>
+        <div class="badge-sub">SGMA</div>
+      </div>
+    </div>
+    <div class="name">SGMA</div>
+    <div class="fullname">SISTEMA DE GERENCIAMENTO DE MANUTENÇÃO</div>
+    <div class="dots">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+  </div>
+  <script>
+    setTimeout(() => { window.location.href = 'index.html'; }, 2500);
+  </script>
+</body>
+</html>
