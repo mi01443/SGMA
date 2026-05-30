@@ -10,7 +10,7 @@ const API = (() => {
   // ── CONFIGURAÇÃO ──────────────────────────────────────────────
   const CONFIG = {
     // Após publicar o Apps Script como Web App, cole a URL aqui:
-    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbw4GoOjsE0rAtODIhBW1aQD9MA4wzc2SNqpoy39xxUHlSrQ-cKoJs3qOG9PRvCzDcMe-w/exec',
+    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzyD2fPVrS4ZBmtuzZRNtnkoksRNYKfjD92aMr5vRVfUChnsR_tTZtHFszw-XTj1riUvw/exec',
 
     // ID da planilha do Google Sheets
     SHEET_ID: '1_PB62JPwuM-uRA-_4T6T25JQHny4AKOfr71RcJ43Tds',
