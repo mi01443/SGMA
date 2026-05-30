@@ -73,8 +73,7 @@ if (document.getElementById('login-form')) {
       btnEl.innerHTML = '<span class="spinner" style="width:16px;height:16px;border-width:2px;"></span> Entrando...';
 
       try {
-        const hash = await Auth.sha256(senha);
-        const res  = await API.login(usuario, hash);
+        const res  = await API.login(usuario, senha);
         Auth.setSession(res.usuario, res.token);
         window.location.href = res.usuario.perfil === 'admin' ? 'admin.html' : 'app.html';
       } catch (err) {
