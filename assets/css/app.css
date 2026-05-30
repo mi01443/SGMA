@@ -9,16 +9,10 @@
   transition: transform 0.25s ease;
 }
 .sidebar-logo {
-  padding: 1.25rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.08);
-  display: flex; align-items: center; gap: 10px;
+  padding: 1.1rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex; align-items: center;
 }
-.sidebar-logo-icon {
-  width: 34px; height: 34px; background: var(--primary);
-  border-radius: 8px; display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.sidebar-logo-text { color: #fff; font-weight: 600; font-size: 0.9rem; line-height: 1.2; }
-.sidebar-logo-text span { display: block; font-size: 0.7rem; font-weight: 400; color: var(--gray-400); }
+.sidebar-logo-text { color: #fff; }
 
 .sidebar-nav { flex: 1; padding: 0.5rem 0; overflow-y: auto; }
 .nav-section { padding: 1rem 1rem 0.25rem; font-size: 0.65rem; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.08em; }
