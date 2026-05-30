@@ -10,13 +10,13 @@ const API = (() => {
   // ── CONFIGURAÇÃO ──────────────────────────────────────────────
   const CONFIG = {
     // Após publicar o Apps Script como Web App, cole a URL aqui:
-    SCRIPT_URL: 'https://script.google.com/macros/s/SEU_DEPLOYMENT_ID/exec',
+    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzDl8dmoi22hCgoLrEuAkHnnv2y0voigAHrQvfg94DECR1bMzeEeFvbPvfmLRnkHOv8sA/exec',
 
     // ID da planilha do Google Sheets
-    SHEET_ID: 'SEU_SHEET_ID',
+    SHEET_ID: '1_PB62JPwuM-uRA-_4T6T25JQHny4AKOfr71RcJ43Tds',
 
     // ID da pasta raiz no Google Drive
-    DRIVE_ROOT_ID: 'SEU_DRIVE_FOLDER_ID',
+    DRIVE_ROOT_ID: '1rwfnNUfV_R9ts2mSf7WcMYrX7TeTS0no',
   };
   // ──────────────────────────────────────────────────────────────
 
