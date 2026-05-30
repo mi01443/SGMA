@@ -42,8 +42,8 @@
   }
 
   // ── Carregar dados ──
-  async function loadAll() {
-    Utils.showLoading('Carregando...');
+  async function loadAll(silent = false) {
+    if (!silent) Utils.showLoading('Carregando...');
     try {
       const promises = [
         API.getAtividades(isSupervisor ? {} : { tecnicoId: session.id }),
@@ -59,13 +59,14 @@
       motivos       = motRes.motivos || [];
       profissionais = profRes?.profissionais || [];
 
-      // Semana atual = a mais recente com status aberta ou a primeira
       const semanas = semRes.semanas || [];
       semanaAtual   = semanas.find(s => s.status === 'aberta') || semanas[0] || null;
 
     } catch (e) {
-      Utils.toast('Erro ao carregar: ' + e.message, 'error');
-    } finally { Utils.hideLoading(); }
+      if (!silent) Utils.toast('Erro ao carregar: ' + e.message, 'error');
+    } finally {
+      if (!silent) Utils.hideLoading();
+    }
   }
 
   // ══════════════════════════════════════════════════════
@@ -722,10 +723,24 @@
   }
 
   // expor setView globalmente para o HTML
-  window.setView = setView;
+  window.setView  = setView;
+  window.loadAll  = loadAll;
 
   // ── Init ──
   await loadAll();
   setView('dashboard');
+
+  // ── Auto-refresh a cada 5s (silencioso, sem loading overlay) ──
+  let _activeView = 'dashboard';
+  const _origSetView = setView;
+  window.setView = function(v) { _activeView = v; _origSetView(v); };
+
+  setInterval(async () => {
+    // Não atualiza se o painel de detalhe estiver aberto
+    if (currentAtiv) return;
+    await loadAll(true);
+    if (_activeView === 'dashboard')  renderDashboard();
+    if (_activeView === 'atividades') renderAtividades();
+  }, 5000);
 
 })();
