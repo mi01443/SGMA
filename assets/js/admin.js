@@ -92,13 +92,14 @@
   window.openProfModal = (id = null) => {
     const p = id ? profissionais.find(x => x.id === id) : null;
     Utils.el('prof-modal-title').textContent = p ? 'Editar Profissional' : 'Novo Profissional';
-    Utils.el('prof-id').value    = p?.id || '';
-    Utils.el('prof-nome').value  = p?.nome || '';
-    Utils.el('prof-email').value = p?.email || '';
-    Utils.el('prof-perfil').value = p?.perfil || 'tecnico';
-    Utils.el('prof-hh').value   = p?.hh_semana || 44;
-    Utils.el('prof-senha').value = '';
-    Utils.el('prof-senha').placeholder = p ? 'Deixe em branco para manter' : 'Nova senha';
+    Utils.el('prof-id').value      = p?.id || '';
+    Utils.el('prof-nome').value    = p?.nome || '';
+    Utils.el('prof-email').value   = p?.email || '';
+    Utils.el('prof-usuario').value = p?.usuario || '';
+    Utils.el('prof-perfil').value  = p?.perfil || 'tecnico';
+    Utils.el('prof-hh').value      = p?.hh_semana || 44;
+    Utils.el('prof-senha').value   = '';
+    Utils.el('prof-senha').placeholder = p ? 'Deixe em branco para manter' : 'Nova senha obrigatória';
     Utils.openModal('prof-modal');
   };
 
@@ -110,15 +111,17 @@
     const btn = Utils.el('btn-prof-save');
     btn.disabled = true;
     try {
-      const senha = Utils.el('prof-senha').value;
+      const senha = Utils.el('prof-senha').value.trim();
       const dados = {
         id:        Utils.el('prof-id').value,
         nome:      Utils.el('prof-nome').value.trim(),
         email:     Utils.el('prof-email').value.trim(),
+        usuario:   Utils.el('prof-usuario').value.trim(),
         perfil:    Utils.el('prof-perfil').value,
         hh_semana: parseInt(Utils.el('prof-hh').value) || 44,
       };
-      if (senha) dados.senhaHash = await Auth.sha256(senha);
+      if (!dados.id && !senha) { Utils.toast('Informe a senha', 'error'); btn.disabled = false; return; }
+      if (senha) dados.senha = senha;
       await API.saveProfissional(dados);
       Utils.closeModal('prof-modal');
       Utils.toast('Profissional salvo!', 'success');
