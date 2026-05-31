@@ -59,20 +59,17 @@
     }
     tbody.innerHTML = profissionais.map(p => `
       <tr>
+        <td><span class="badge badge-gray" style="font-family:var(--mono);">${p.id}</span></td>
         <td>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div class="user-avatar" style="width:30px;height:30px;font-size:.75rem;">${Utils.initials(p.nome)}</div>
-            <div>
-              <div class="fw-500">${p.nome}</div>
-              <div class="text-xs text-muted">${p.email || '—'}</div>
-            </div>
-          </div>
+          <div class="fw-500">${p.nome}</div>
+          <div class="text-xs text-muted">${p.email || '—'}</div>
         </td>
-        <td><span class="badge ${p.perfil === 'admin' ? 'badge-danger' : p.perfil === 'supervisor' ? 'badge-info' : 'badge-gray'}">${p.perfil}</span></td>
-        <td>${p.hh_semana || 44}h</td>
+        <td style="font-size:.82rem;">${p.funcao || '—'}</td>
+        <td><span class="badge badge-info" style="font-size:.68rem;">${p.regime || '—'}</span></td>
+        <td><span class="badge ${p.perfil === 'admin' ? 'badge-danger' : p.perfil === 'supervisor' ? 'badge-primary' : 'badge-gray'}">${p.perfil}</span></td>
         <td>
           <label class="toggle">
-            <input type="checkbox" ${p.ativo ? 'checked' : ''} onchange="toggleProf('${p.id}', this.checked)">
+            <input type="checkbox" ${String(p.ativo).toLowerCase() !== 'false' ? 'checked' : ''} onchange="toggleProf('${p.id}', this.checked)">
             <span class="toggle-slider"></span>
           </label>
         </td>
@@ -92,13 +89,20 @@
   window.openProfModal = (id = null) => {
     const p = id ? profissionais.find(x => x.id === id) : null;
     Utils.el('prof-modal-title').textContent = p ? 'Editar Profissional' : 'Novo Profissional';
-    Utils.el('prof-id').value      = p?.id || '';
-    Utils.el('prof-nome').value    = p?.nome || '';
-    Utils.el('prof-email').value   = p?.email || '';
-    Utils.el('prof-usuario').value = p?.usuario || '';
-    Utils.el('prof-perfil').value  = p?.perfil || 'tecnico';
-    Utils.el('prof-hh').value      = p?.hh_semana || 44;
-    Utils.el('prof-senha').value   = '';
+    Utils.el('prof-id').value         = p?.id || '';
+    Utils.el('prof-matricula').value  = p?.id || '';
+    Utils.el('prof-nome').value       = p?.nome || '';
+    Utils.el('prof-email').value      = p?.email || '';
+    Utils.el('prof-telefone').value   = p?.telefone || '';
+    Utils.el('prof-endereco').value   = p?.endereco || '';
+    Utils.el('prof-nascimento').value = p?.dt_nascimento || '';
+    Utils.el('prof-admissao').value   = p?.dt_admissao || '';
+    Utils.el('prof-funcao').value     = p?.funcao || '';
+    Utils.el('prof-regime').value     = p?.regime || '';
+    Utils.el('prof-usuario').value    = p?.usuario || '';
+    Utils.el('prof-perfil').value     = p?.perfil || 'tecnico';
+    Utils.el('prof-hh').value         = p?.hh_semana || 44;
+    Utils.el('prof-senha').value      = '';
     Utils.el('prof-senha').placeholder = p ? 'Deixe em branco para manter' : 'Nova senha obrigatória';
     Utils.openModal('prof-modal');
   };
@@ -111,14 +115,22 @@
     const btn = Utils.el('btn-prof-save');
     btn.disabled = true;
     try {
-      const senha = Utils.el('prof-senha').value.trim();
+      const senha      = Utils.el('prof-senha').value.trim();
+      const matricula  = Utils.el('prof-matricula').value.trim();
+      if (!matricula) { Utils.toast('Matrícula é obrigatória', 'error'); btn.disabled = false; return; }
       const dados = {
-        id:        Utils.el('prof-id').value,
-        nome:      Utils.el('prof-nome').value.trim(),
-        email:     Utils.el('prof-email').value.trim(),
-        usuario:   Utils.el('prof-usuario').value.trim(),
-        perfil:    Utils.el('prof-perfil').value,
-        hh_semana: parseInt(Utils.el('prof-hh').value) || 44,
+        id:           matricula,
+        nome:         Utils.el('prof-nome').value.trim(),
+        email:        Utils.el('prof-email').value.trim(),
+        telefone:     Utils.el('prof-telefone').value.trim(),
+        endereco:     Utils.el('prof-endereco').value.trim(),
+        dt_nascimento:Utils.el('prof-nascimento').value,
+        dt_admissao:  Utils.el('prof-admissao').value,
+        funcao:       Utils.el('prof-funcao').value,
+        regime:       Utils.el('prof-regime').value,
+        usuario:      Utils.el('prof-usuario').value.trim(),
+        perfil:       Utils.el('prof-perfil').value,
+        hh_semana:    parseInt(Utils.el('prof-hh').value) || 44,
       };
       if (!dados.id && !senha) { Utils.toast('Informe a senha', 'error'); btn.disabled = false; return; }
       if (senha) dados.senha = senha;
