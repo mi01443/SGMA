@@ -69,12 +69,52 @@
           <h2>Profissionais</h2>
           <button class="btn btn-primary btn-sm" id="btn-nova-prof">+ Novo profissional</button>
         </div>
-        <div class="card">
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Matrícula</th><th>Nome</th><th>Função</th><th>Regime</th><th>Perfil</th><th>Ativo</th><th>Ações</th></tr></thead>
-              <tbody id="prof-tbody"><tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--gray-400);">Carregando...</td></tr></tbody>
-            </table>
+        <div style="display:flex;gap:16px;align-items:flex-start;">
+          <!-- Lista -->
+          <div style="flex:1;min-width:0;">
+            <div class="card">
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Matrícula</th><th>Nome</th><th>Função</th><th>Regime</th><th>Perfil</th><th>Ativo</th><th>Ações</th></tr></thead>
+                  <tbody id="prof-tbody"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--gray-400);">Carregando...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Painel de detalhe -->
+          <div id="prof-detail-panel" style="display:none;width:300px;flex-shrink:0;position:sticky;top:76px;">
+            <div class="card">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+                <span class="card-title">Ficha do Colaborador</span>
+                <button class="btn btn-ghost btn-sm btn-icon" onclick="document.getElementById('prof-detail-panel').style.display='none'">&#x2715;</button>
+              </div>
+
+              <!-- Avatar + nome -->
+              <div style="text-align:center;margin-bottom:1.25rem;">
+                <div id="pd-avatar" style="width:64px;height:64px;border-radius:50%;background:var(--primary);display:inline-flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:700;color:#fff;margin-bottom:10px;">--</div>
+                <div id="pd-nome" style="font-weight:600;font-size:1rem;"></div>
+                <div id="pd-funcao" style="font-size:.8rem;color:var(--gray-500);margin-top:2px;"></div>
+                <div style="margin-top:8px;" id="pd-badges"></div>
+              </div>
+
+              <div class="divider"></div>
+              <div style="font-size:.68rem;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.07em;margin:12px 0 8px;">Dados Pessoais</div>
+              <div id="pd-pessoais" style="font-size:.825rem;display:grid;gap:6px;"></div>
+
+              <div class="divider"></div>
+              <div style="font-size:.68rem;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.07em;margin:12px 0 8px;">Dados Profissionais</div>
+              <div id="pd-profissionais" style="font-size:.825rem;display:grid;gap:6px;"></div>
+
+              <div class="divider"></div>
+              <div style="font-size:.68rem;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.07em;margin:12px 0 8px;">Acesso ao Sistema</div>
+              <div id="pd-acesso" style="font-size:.825rem;display:grid;gap:6px;"></div>
+
+              <div style="margin-top:1.25rem;display:flex;gap:8px;">
+                <button class="btn btn-secondary btn-sm flex-1" id="pd-btn-editar">Editar</button>
+                <button class="btn btn-ghost btn-sm flex-1" id="pd-btn-toggle"></button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
