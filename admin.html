@@ -72,7 +72,7 @@
         <div class="card">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Nome</th><th>Perfil</th><th>HH/sem.</th><th>Ativo</th><th>Ações</th></tr></thead>
+              <thead><tr><th>Matrícula</th><th>Nome</th><th>Função</th><th>Regime</th><th>Perfil</th><th>Ativo</th><th>Ações</th></tr></thead>
               <tbody id="prof-tbody"><tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--gray-400);">Carregando...</td></tr></tbody>
             </table>
           </div>
@@ -157,36 +157,91 @@
 
 <!-- Profissional -->
 <div id="prof-modal" class="modal-overlay" style="display:none;">
-  <div class="modal">
+  <div class="modal modal-lg">
     <div class="modal-header">
       <h3 class="modal-title" id="prof-modal-title">Novo Profissional</h3>
       <button class="btn btn-ghost btn-sm btn-icon" onclick="Utils.closeModal('prof-modal')">✕</button>
     </div>
     <form id="prof-form">
       <input type="hidden" id="prof-id">
+
+      <div style="font-size:.7rem;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.75rem;">Dados Pessoais</div>
       <div class="form-row">
         <div class="form-group">
+          <label class="form-label">Matrícula <span>*</span></label>
+          <input type="text" id="prof-matricula" class="form-control" required placeholder="Ex: 61880">
+        </div>
+        <div class="form-group">
           <label class="form-label">Nome completo <span>*</span></label>
-          <input type="text" id="prof-nome" class="form-control" required>
+          <input type="text" id="prof-nome" class="form-control" required placeholder="Nome completo">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data de Nascimento</label>
+          <input type="date" id="prof-nascimento" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefone</label>
+          <input type="tel" id="prof-telefone" class="form-control" placeholder="(21) 99999-9999">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Endereço</label>
+        <input type="text" id="prof-endereco" class="form-control" placeholder="Rua, número, bairro, cidade">
+      </div>
+
+      <div style="font-size:.7rem;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.07em;margin:1rem 0 .75rem;">Dados Profissionais</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Função <span>*</span></label>
+          <select id="prof-funcao" class="form-control" required>
+            <option value="">Selecione...</option>
+            <option>Técnico Manutenção Eletroeletrônico I</option>
+            <option>Técnico Manutenção Eletroeletrônico II</option>
+            <option>Técnico Manutenção Eletroeletrônico III</option>
+            <option>Técnico Especialista</option>
+            <option>Supervisor</option>
+            <option>Estagiário</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Regime de Trabalho <span>*</span></label>
+          <select id="prof-regime" class="form-control" required>
+            <option value="">Selecione...</option>
+            <option>ADM</option>
+            <option>Turno A</option>
+            <option>Turno B</option>
+            <option>Turno C</option>
+            <option>Turno D</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data de Admissão</label>
+          <input type="date" id="prof-admissao" class="form-control">
         </div>
         <div class="form-group">
           <label class="form-label">E-mail</label>
-          <input type="email" id="prof-email" class="form-control">
+          <input type="email" id="prof-email" class="form-control" placeholder="email@empresa.com">
         </div>
       </div>
+
+      <div style="font-size:.7rem;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.07em;margin:1rem 0 .75rem;">Acesso ao Sistema</div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Usuário (login) <span>*</span></label>
-          <input type="text" id="prof-usuario" class="form-control" required placeholder="sem espacos">
+          <label class="form-label">Usuário <span>*</span></label>
+          <input type="text" id="prof-usuario" class="form-control" required placeholder="login sem espaços">
         </div>
         <div class="form-group">
           <label class="form-label">Senha</label>
-          <input type="password" id="prof-senha" class="form-control">
+          <input type="password" id="prof-senha" class="form-control" placeholder="Deixe em branco para manter">
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Perfil</label>
+          <label class="form-label">Perfil de Acesso</label>
           <select id="prof-perfil" class="form-control">
             <option value="tecnico">Técnico</option>
             <option value="supervisor">Supervisor</option>
@@ -194,10 +249,11 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">HH disponível/semana</label>
+          <label class="form-label">HH disponível / semana</label>
           <input type="number" id="prof-hh" class="form-control" value="44" min="1" max="60">
         </div>
       </div>
+
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="btn-prof-cancel">Cancelar</button>
         <button type="submit" class="btn btn-primary" id="btn-prof-save">Salvar</button>
