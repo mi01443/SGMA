@@ -58,7 +58,7 @@
       return;
     }
     tbody.innerHTML = profissionais.map(p => `
-      <tr>
+      <tr style="cursor:pointer;" onclick="openProfDetail('${p.id}')">
         <td><span class="badge badge-gray" style="font-family:var(--mono);">${p.id}</span></td>
         <td>
           <div class="fw-500">${p.nome}</div>
@@ -68,18 +68,78 @@
         <td><span class="badge badge-info" style="font-size:.68rem;">${p.regime || '—'}</span></td>
         <td><span class="badge ${p.perfil === 'admin' ? 'badge-danger' : p.perfil === 'supervisor' ? 'badge-primary' : 'badge-gray'}">${p.perfil}</span></td>
         <td>
-          <label class="toggle">
+          <label class="toggle" onclick="event.stopPropagation()">
             <input type="checkbox" ${String(p.ativo).toLowerCase() !== 'false' ? 'checked' : ''} onchange="toggleProf('${p.id}', this.checked)">
             <span class="toggle-slider"></span>
           </label>
         </td>
         <td>
-          <button class="btn btn-ghost btn-sm btn-icon" onclick="openProfModal('${p.id}')" title="Editar">
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();openProfModal('${p.id}')" title="Editar">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
         </td>
       </tr>`).join('');
+
+  // Highlight da linha selecionada
+  tbody.querySelectorAll('tr').forEach(tr => {
+    tr.addEventListener('mouseenter', () => tr.style.background = 'var(--primary-light)');
+    tr.addEventListener('mouseleave', () => tr.style.background = '');
+  });
   }
+
+  window.openProfDetail = (id) => {
+    const p = profissionais.find(x => x.id === id);
+    if (!p) return;
+
+    const isAtivo = String(p.ativo).toLowerCase() !== 'false';
+    const initials = p.nome ? p.nome.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase() : '??';
+
+    Utils.el('pd-avatar').textContent   = initials;
+    Utils.el('pd-nome').textContent     = p.nome || '—';
+    Utils.el('pd-funcao').textContent   = p.funcao || '—';
+    Utils.el('pd-badges').innerHTML = `
+      <span class="badge ${p.perfil==='admin'?'badge-danger':p.perfil==='supervisor'?'badge-primary':'badge-gray'}" style="margin-right:4px;">${p.perfil}</span>
+      <span class="badge badge-info">${p.regime || '—'}</span>
+      <span class="badge ${isAtivo?'badge-success':'badge-danger'}" style="margin-left:4px;">${isAtivo?'Ativo':'Inativo'}</span>`;
+
+    const row = (label, val) => val
+      ? `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--gray-100);">
+           <span style="color:var(--gray-500);font-size:.775rem;">${label}</span>
+           <span style="font-weight:500;text-align:right;word-break:break-word;">${val}</span>
+         </div>` : '';
+
+    Utils.el('pd-pessoais').innerHTML = [
+      row('Matrícula',       p.id),
+      row('E-mail',          p.email),
+      row('Telefone',        p.telefone),
+      row('Endereço',        p.endereco),
+      row('Nascimento',      p.dt_nascimento ? new Date(p.dt_nascimento+'T00:00:00').toLocaleDateString('pt-BR') : ''),
+    ].join('') || '<span class="text-muted">—</span>';
+
+    Utils.el('pd-profissionais').innerHTML = [
+      row('Função',          p.funcao),
+      row('Regime',          p.regime),
+      row('Admissão',        p.dt_admissao ? new Date(p.dt_admissao+'T00:00:00').toLocaleDateString('pt-BR') : ''),
+      row('HH/semana',       p.hh_semana ? p.hh_semana + 'h' : ''),
+    ].join('') || '<span class="text-muted">—</span>';
+
+    Utils.el('pd-acesso').innerHTML = [
+      row('Usuário',         p.usuario),
+      row('Perfil',          p.perfil),
+    ].join('');
+
+    // Botões
+    Utils.el('pd-btn-editar').onclick  = () => window.openProfModal(id);
+    Utils.el('pd-btn-toggle').textContent = isAtivo ? '🔴 Desativar' : '🟢 Ativar';
+    Utils.el('pd-btn-toggle').onclick  = async () => {
+      await window.toggleProf(id, !isAtivo);
+      await loadProfissionais();
+      window.openProfDetail(id);
+    };
+
+    // Mostrar painel
+    Utils.el('prof-detail-panel').style.display = 'block';
+  };
 
   window.toggleProf = async (id, ativo) => {
     try { await API.toggleProfissional(id, ativo); Utils.toast('Atualizado!', 'success'); }
