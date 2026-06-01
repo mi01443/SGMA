@@ -337,11 +337,14 @@
     return `<div class="activity-card ${a.status !== 'pendente' ? 'done' : ''}" data-id="${a.id}">
       <div class="activity-type-dot type-${a.tipo}"></div>
       <div class="activity-body">
-        <div class="activity-equip">${a.equipamento_nome || '—'}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+          <div class="activity-equip">${a.equipamento_nome || '—'}${a.sub_sistema_nome ? ' · ' + a.sub_sistema_nome : ''}</div>
+          ${a.om || a.id ? `<span style="font-family:var(--mono);font-size:.7rem;color:var(--gray-400);background:var(--gray-100);padding:1px 7px;border-radius:4px;">OM ${a.om || a.id}</span>` : ''}
+        </div>
         <div class="activity-desc">${Utils.truncate(a.descricao, 70)}</div>
         <div class="activity-meta">
           <span>👤 ${a.tecnico_nome || '—'}</span>
-          <span>⏱ ${Utils.fmtHH(a.hh_estimado)}</span>
+          <span>⏱ ${Utils.fmtHH(a.hh_estimado)} est.</span>
           ${Utils.tipoBadge(a.tipo)}
         </div>
         ${passos.length ? `
@@ -397,16 +400,22 @@
 
     Utils.setHTML('detail-info', `
       <div class="detail-section">
-        <div class="detail-section-title">Informações</div>
+        <!-- OM destaque -->
+        <div style="background:var(--primary-light);border:1.5px solid var(--primary);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-size:.7rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.06em;">Ordem de Manutenção (OM)</div>
+            <div style="font-family:var(--mono);font-size:1.3rem;font-weight:700;color:var(--primary-dark);letter-spacing:2px;">${a.om || a.id}</div>
+          </div>
+          ${Utils.statusBadge(a.status)}
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.825rem;">
-          <div><span class="text-muted">Tag:</span> <strong>${a.equip_tag||'—'}</strong></div>
-          <div><span class="text-muted">Área:</span> <strong>${a.area||'—'}</strong></div>
+          <div><span class="text-muted">Equipamento:</span> <strong>${a.equipamento_nome||'—'}</strong></div>
+          <div><span class="text-muted">Sub Sistema:</span> <strong>${a.sub_sistema_nome||'—'}</strong></div>
           <div><span class="text-muted">Tipo:</span> ${Utils.tipoBadge(a.tipo)}</div>
           <div><span class="text-muted">Prioridade:</span> ${Utils.prioridadeBadge(a.prioridade||'Normal')}</div>
           <div><span class="text-muted">Data:</span> <strong>${Utils.fmtDate(a.data_programada)}</strong></div>
-          <div><span class="text-muted">HH est.:</span> <strong>${Utils.fmtHH(a.hh_estimado)}</strong></div>
+          <div><span class="text-muted">HH Estimado:</span> <strong>${Utils.fmtHH(a.hh_estimado)}</strong></div>
           <div><span class="text-muted">Técnico:</span> <strong>${a.tecnico_nome||'—'}</strong></div>
-          <div><span class="text-muted">Status:</span> ${Utils.statusBadge(a.status)}</div>
         </div>
       </div>`);
 
@@ -453,15 +462,14 @@
       <div class="detail-section">
         <div class="detail-section-title">Registro de Execução</div>
 
-        <!-- Timer -->
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;padding:10px 12px;background:var(--gray-50);border-radius:var(--radius);border:1px solid var(--gray-200);">
-          <div>
-            <div class="text-xs text-muted">Tempo decorrido</div>
-            <div class="timer-display" id="timer-display">00:00:00</div>
-          </div>
-          <div style="margin-left:auto;display:flex;gap:6px;">
-            <button class="btn btn-secondary btn-sm" id="btn-timer-start">▶ Iniciar</button>
-            <button class="btn btn-ghost btn-sm" id="btn-timer-stop">⏹ Parar</button>
+        <!-- HH Real manual -->
+        <div style="background:var(--gray-50);border-radius:var(--radius);border:1px solid var(--gray-200);padding:12px 14px;margin-bottom:1rem;">
+          <div class="text-xs text-muted" style="margin-bottom:6px;font-weight:600;">⏱ Tempo de execução (horas)</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <input type="number" id="hh-real-input" class="form-control"
+              min="0.25" step="0.25" placeholder="Ex: 1.5"
+              style="width:120px;font-family:var(--mono);font-size:1.1rem;font-weight:600;text-align:center;">
+            <span class="text-muted text-sm">horas &nbsp;·&nbsp; HH estimado: <strong>${Utils.fmtHH(a.hh_estimado)}</strong></span>
           </div>
         </div>
 
@@ -505,10 +513,6 @@
         </div>
       </div>`;
 
-    // Timer
-    Utils.el('btn-timer-start')?.addEventListener('click', startTimer);
-    Utils.el('btn-timer-stop')?.addEventListener('click', stopTimer);
-
     // Status buttons
     function updateStatusUI() {
       Utils.el('btn-status-ok')?.classList.toggle('btn-success',    selectedStatus === 'concluida');
@@ -534,19 +538,19 @@
         }
         btnSave.disabled = true;
         btnSave.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Salvando...';
-        stopTimer();
         try {
+          const hhReal = parseFloat(Utils.el('hh-real-input')?.value) || 0;
           Utils.showLoading('Enviando fotos...');
           const linksAntes  = await uploadFotos(fotosBefore, 'antes');
           const linksDepois = await uploadFotos(fotosAfter,  'depois');
           Utils.showLoading('Salvando execução...');
           await API.saveExecucao({
-            atividadeId:  currentAtiv.id,
+            atividadeId:  String(currentAtiv.id),
             tecnicoId:    session.id,
             status:       selectedStatus,
             motivoId:     Utils.el('exec-motivo')?.value || '',
             obs:          Utils.el('exec-obs')?.value || '',
-            hhReal:       +(timerSeconds / 3600).toFixed(2),
+            hhReal:       hhReal,
             fotosAntes:   JSON.stringify(linksAntes),
             fotosDepois:  JSON.stringify(linksDepois),
           });
