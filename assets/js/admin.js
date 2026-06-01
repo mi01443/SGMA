@@ -182,6 +182,7 @@
       await loadProfissionais();
       window.openProfDetail(id);
     };
+    Utils.el('pd-btn-deletar').onclick = () => window.deletarProfissional(id);
 
     // Mostrar painel
     Utils.el('prof-detail-panel').style.display = 'block';
@@ -190,6 +191,20 @@
   window.toggleProf = async (id, ativo) => {
     try { await API.toggleProfissional(id, ativo); Utils.toast('Atualizado!', 'success'); }
     catch (e) { Utils.toast('Erro: ' + e.message, 'error'); }
+  };
+
+  window.deletarProfissional = async (id) => {
+    const p = profissionais.find(x => x.id === id);
+    if (!p) return;
+    if (!confirm(`Excluir o profissional "${p.nome}" (matrícula ${p.id})?
+
+Essa ação não pode ser desfeita.`)) return;
+    try {
+      await API.deletarProfissional(id);
+      Utils.toast('Profissional excluído!', 'success');
+      Utils.el('prof-detail-panel').style.display = 'none';
+      await loadProfissionais();
+    } catch (e) { Utils.toast('Erro: ' + e.message, 'error'); }
   };
 
   window.openProfModal = (id = null) => {
@@ -293,11 +308,9 @@
   window.openEqModal = (id = null) => {
     const e = id ? equipamentos.find(x => x.id === id) : null;
     Utils.el('eq-modal-title').textContent = e ? 'Editar Equipamento' : 'Novo Equipamento';
-    Utils.el('eq-id').value        = e?.id || '';
-    Utils.el('eq-nome').value      = e?.nome || '';
-    Utils.el('eq-tag').value       = e?.tag || '';
-    Utils.el('eq-area').value      = e?.area || '';
-    Utils.el('eq-categoria').value = e?.categoria || '';
+    Utils.el('eq-id').value          = e?.id || '';
+    Utils.el('eq-tag').value         = e?.tag || '';
+    Utils.el('eq-sub-sistema').value = e?.sub_sistema || '';
     Utils.openModal('eq-modal');
   };
 
@@ -309,12 +322,12 @@
     const btn = Utils.el('btn-eq-save');
     btn.disabled = true;
     try {
+      const tag = Utils.el('eq-tag').value.trim().toUpperCase();
       await API.saveEquipamento({
-        id:        Utils.el('eq-id').value,
-        nome:      Utils.el('eq-nome').value.trim(),
-        tag:       Utils.el('eq-tag').value.trim().toUpperCase(),
-        area:      Utils.el('eq-area').value.trim(),
-        categoria: Utils.el('eq-categoria').value,
+        id:         Utils.el('eq-id').value,
+        nome:       tag,
+        tag:        tag,
+        sub_sistema:Utils.el('eq-sub-sistema').value.trim(),
       });
       Utils.closeModal('eq-modal');
       Utils.toast('Equipamento salvo!', 'success');
