@@ -647,6 +647,13 @@
           </div>
         </div>
         <div class="form-group">
+          <label class="form-label">Número da OM (SAP) <span>*</span></label>
+          <input type="text" class="form-control" id="nova-om"
+            placeholder="Ex: 1234567"
+            style="font-family:var(--mono);font-size:1rem;font-weight:600;letter-spacing:1px;">
+          <div class="form-hint">Número único gerado pelo SAP.</div>
+        </div>
+        <div class="form-group">
           <label class="form-label">Descrição <span>*</span></label>
           <textarea class="form-control" id="nova-desc" rows="3" placeholder="Descreva o que foi feito..."></textarea>
         </div>
@@ -669,12 +676,16 @@
     Utils.el('btn-nova-save')?.addEventListener('click', async () => {
       const eqId = Utils.el('nova-eq').value;
       const desc = Utils.el('nova-desc').value.trim();
+      const om   = Utils.el('nova-om').value.trim();
+      if (!om)         { Utils.toast('Informe o número da OM', 'error'); return; }
       if (!eqId || !desc) { Utils.toast('Preencha equipamento e descrição', 'error'); return; }
       const btn = Utils.el('btn-nova-save');
       btn.disabled = true;
       Utils.showLoading('Criando...');
       try {
         await API.saveAtividade({
+          id:             om,
+          om:             om,
           tipo:           Utils.el('nova-tipo').value,
           equipamentoId:  eqId,
           subSistemaId:   Utils.el('nova-sub-sistema-id')?.value || '',
