@@ -70,8 +70,8 @@
   window.toInputDate = toInputDate;
   window.fmtDataBR   = fmtDataBR;
 
-  async function loadTab(tab) {
-    Utils.showLoading();
+  async function loadTab(tab, silent = false) {
+    if (!silent) Utils.showLoading();
     try {
       if (tab === 'profissionais') { await loadProfissionais(); }
       if (tab === 'equipamentos')  { await loadEquipamentos(); }
@@ -80,8 +80,10 @@
       if (tab === 'importar')      { renderImportar(); }
       if (tab === 'motivos')       { await loadMotivos(); }
     } catch (e) {
-      Utils.toast('Erro ao carregar: ' + e.message, 'error');
-    } finally { Utils.hideLoading(); }
+      if (!silent) Utils.toast('Erro ao carregar: ' + e.message, 'error');
+    } finally {
+      if (!silent) Utils.hideLoading();
+    }
   }
 
   // ═══════════════════════════════════════
@@ -740,4 +742,12 @@
 
   // ── Init ──
   await loadTab('profissionais');
+
+  // ── Auto-refresh a cada 5s (silencioso) ──
+  setInterval(async () => {
+    // Não atualiza abas que não fazem sentido ou podem conflitar com ação do usuário
+    if (activeTab === 'importar') return;
+    try { await loadTab(activeTab, true); } catch {}
+  }, 5000);
+
 })();
