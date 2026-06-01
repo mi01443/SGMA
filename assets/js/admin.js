@@ -301,6 +301,8 @@ Essa ação não pode ser desfeita.`)) return;
         </td>
       </tr>`;
     }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:2rem;">Nenhum equipamento</td></tr>';
+  }
+
   window.openAtModal = (id = null) => {
     const a = id ? atividades.find(x => x.id === id) : null;
     const eqOpts   = equipamentos.map(e => `<option value="${e.id}" ${a?.equipamento_id === e.id ? 'selected' : ''}>${e.nome}</option>`).join('');
