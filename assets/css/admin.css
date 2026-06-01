@@ -64,3 +64,10 @@
   .search-input-wrap input { width: 160px; }
   .form-row { grid-template-columns: 1fr; }
 }
+
+/* Filtros responsivos */
+@media (max-width: 500px) {
+  .prof-filter-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
