@@ -694,13 +694,14 @@
           prioridade:     Utils.el('nova-prio').value,
           dataProgramada: Utils.el('nova-data').value,
           hhEstimado:     parseFloat(Utils.el('nova-hh').value) || 1,
-          passos:         '[]',
+          passos:         JSON.stringify([]),
         });
         Utils.toast('Atividade criada!', 'success');
         await loadAll();
         setView('dashboard');
       } catch (e) {
-        Utils.toast('Erro: ' + e.message, 'error');
+        console.error('Erro saveAtividade:', e);
+        Utils.toast('Erro: ' + (e.message || 'Verifique o console'), 'error');
         btn.disabled = false;
       } finally { Utils.hideLoading(); }
     });
