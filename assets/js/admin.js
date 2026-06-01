@@ -270,8 +270,9 @@ Essa ação não pode ser desfeita.`)) return;
   // EQUIPAMENTOS
   // ═══════════════════════════════════════
   async function loadEquipamentos() {
-    const res = await API.getEquipamentos();
-    equipamentos = res.equipamentos || [];
+    const [eqRes, subRes] = await Promise.all([API.getEquipamentos(), API.getSubSistemas()]);
+    equipamentos = eqRes.equipamentos || [];
+    subSistemas  = subRes.subSistemas  || [];
     renderEquipamentos();
   }
 
@@ -279,20 +280,18 @@ Essa ação não pode ser desfeita.`)) return;
     const tbody = Utils.el('eq-tbody');
     if (!tbody) return;
     if (!equipamentos.length) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:2rem;">Nenhum equipamento cadastrado</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--gray-400);padding:2rem;">Nenhum equipamento cadastrado</td></tr>';
       return;
     }
-        tbody.innerHTML = equipamentos.map(e => {
-      const subs = subSistemas.filter(s => s.equipamento_id === e.id && String(s.ativo).toLowerCase() !== 'false');
+    tbody.innerHTML = equipamentos.map(e => {
+      const subs = subSistemas.filter(s => s.equipamento_id === e.id);
       return `
       <tr>
         <td class="fw-500">${e.nome || e.tag}</td>
-        <td>${subs.length ? subs.map(s => `<span class="badge badge-gray" style="margin:1px;">${s.nome}</span>`).join('') : '<span class="text-muted text-xs">Nenhum</span>'}</td>
         <td>
-          <label class="toggle">
-            <input type="checkbox" ${String(e.ativo).toLowerCase() !== 'false' ? 'checked' : ''} onchange="toggleEq('${e.id}', this.checked)">
-            <span class="toggle-slider"></span>
-          </label>
+          ${subs.length
+            ? subs.map(s => `<span class="badge badge-gray" style="margin:2px;">${s.nome}</span>`).join('')
+            : '<span class="text-muted text-xs">Nenhum sub sistema</span>'}
         </td>
         <td>
           <button class="btn btn-ghost btn-sm btn-icon" onclick="openEqModal('${e.id}')">
@@ -300,7 +299,7 @@ Essa ação não pode ser desfeita.`)) return;
           </button>
         </td>
       </tr>`;
-    }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:2rem;">Nenhum equipamento</td></tr>';
+    }).join('');
   }
 
   window.toggleEq = async (id, ativo) => {
@@ -356,6 +355,13 @@ Essa ação não pode ser desfeita.`)) return;
 
     Utils.el('at-modal-body').innerHTML = `
       <input type="hidden" id="at-id" value="${a?.id || ''}">
+      <div class="form-group">
+        <label class="form-label">Número da OM (SAP) <span>*</span></label>
+        <input type="text" class="form-control" id="at-om"
+          value="${a?.om || ''}" placeholder="Ex: 1234567"
+          style="font-family:var(--mono);font-size:1rem;font-weight:600;letter-spacing:1px;">
+        <div class="form-hint">Número único gerado pelo SAP. Será usado como chave da atividade.</div>
+      </div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Tipo</label>
@@ -448,8 +454,12 @@ Essa ação não pode ser desfeita.`)) return;
     btn.disabled = true;
     try {
       const passos = [...document.querySelectorAll('.passo-input')].map(i => i.value.trim()).filter(Boolean);
+      const om = Utils.el('at-om').value.trim();
+      if (!om) { Utils.toast('Número da OM é obrigatório', 'error'); return; }
+      // OM pode ser usada como ID
       await API.saveAtividade({
-        id:              Utils.el('at-id').value,
+        id:              om,
+        om:              om,
         tipo:            Utils.el('at-tipo').value,
         prioridade:      Utils.el('at-prio').value,
         semanaId:        Utils.el('at-semana').value,
@@ -758,8 +768,12 @@ Essa ação não pode ser desfeita.`)) return;
     btn.disabled = true;
     try {
       const passos = [...document.querySelectorAll('.passo-input')].map(i => i.value.trim()).filter(Boolean);
+      const om = Utils.el('at-om').value.trim();
+      if (!om) { Utils.toast('Número da OM é obrigatório', 'error'); return; }
+      // OM pode ser usada como ID
       await API.saveAtividade({
-        id:              Utils.el('at-id').value,
+        id:              om,
+        om:              om,
         tipo:            Utils.el('at-tipo').value,
         prioridade:      Utils.el('at-prio').value,
         semanaId:        Utils.el('at-semana').value,
