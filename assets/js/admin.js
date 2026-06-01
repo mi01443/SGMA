@@ -27,6 +27,49 @@
     });
   });
 
+  // ── Helpers de data (escopo global do módulo) ──
+  function toInputDate(val) {
+    if (!val || String(val).trim() === '') return '';
+    const s = String(val).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    if (s.includes('T') || s.includes('Z')) {
+      const d = new Date(s);
+      if (!isNaN(d)) {
+        return d.getUTCFullYear() + '-' +
+               String(d.getUTCMonth()+1).padStart(2,'0') + '-' +
+               String(d.getUTCDate()).padStart(2,'0');
+      }
+    }
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+      const p = s.split('/');
+      return p[2]+'-'+p[1]+'-'+p[0];
+    }
+    return '';
+  }
+
+  function fmtDataBR(val) {
+    if (!val || String(val).trim() === '') return '';
+    const s = String(val).trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+    if (s.includes('T') || s.includes('Z')) {
+      const d = new Date(s);
+      if (!isNaN(d)) {
+        return String(d.getUTCDate()).padStart(2,'0') + '/' +
+               String(d.getUTCMonth()+1).padStart(2,'0') + '/' +
+               d.getUTCFullYear();
+      }
+    }
+    const parts = s.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      return parts[2].slice(0,2)+'/'+parts[1]+'/'+parts[0];
+    }
+    return s;
+  }
+
+  // Expor globalmente para uso em onclick inline
+  window.toInputDate = toInputDate;
+  window.fmtDataBR   = fmtDataBR;
+
   async function loadTab(tab) {
     Utils.showLoading();
     try {
@@ -88,94 +131,6 @@
   }
 
   // Converte qualquer formato de data para YYYY-MM-DD (para input type=date)
-  function toInputDate(val) {
-    if (!val || String(val).trim() === '') return '';
-    const s = String(val).trim();
-    // Já está YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    // ISO completo: 2026-05-31T03:00:00.000Z
-    if (s.includes('T') || s.includes('Z')) {
-      const d = new Date(s);
-      if (!isNaN(d)) {
-        const y = d.getUTCFullYear();
-        const m = String(d.getUTCMonth()+1).padStart(2,'0');
-        const day = String(d.getUTCDate()).padStart(2,'0');
-        return y+'-'+m+'-'+day;
-      }
-    }
-    // DD/MM/AAAA → YYYY-MM-DD
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
-      const parts = s.split('/');
-      return parts[2]+'-'+parts[1]+'-'+parts[0];
-    }
-    return '';
-  }
-
-  function fmtDataBR(val) {
-    if (!val || String(val).trim() === '') return '';
-    const s = String(val).trim();
-    // Já está no formato DD/MM/AAAA
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
-    // Formato ISO completo: 2026-05-31T03:00:00.000Z ou similar
-    if (s.includes('T') || s.includes('Z')) {
-      const date = new Date(s);
-      if (!isNaN(date)) {
-        // Usar UTC para evitar deslocamento de fuso
-        const d = String(date.getUTCDate()).padStart(2,'0');
-        const m = String(date.getUTCMonth()+1).padStart(2,'0');
-        const y = date.getUTCFullYear();
-        return d+'/'+m+'/'+y;
-      }
-    }
-    // Formato YYYY-MM-DD simples
-    const parts = s.split('-');
-    if (parts.length === 3 && parts[0].length === 4) {
-      return parts[2].slice(0,2) + '/' + parts[1] + '/' + parts[0];
-    }
-    return s;
-  }
-
-  // ── Filtros ──
-  window.filtrarProfissionais = (limpar = false) => {
-    if (limpar) {
-      const mEl = Utils.el('filtro-prof-matricula');
-      const fEl = Utils.el('filtro-prof-funcao');
-      if (mEl) mEl.value = '';
-      if (fEl) fEl.value = '';
-    }
-    const matricula = (Utils.el('filtro-prof-matricula')?.value || '').toLowerCase().trim();
-    const funcao    = (Utils.el('filtro-prof-funcao')?.value || '').toLowerCase().trim();
-
-    const tbody = Utils.el('prof-tbody');
-    if (!tbody) return;
-
-    let visiveis = 0;
-    tbody.querySelectorAll('tr').forEach(tr => {
-      const mat  = (tr.querySelector('td:nth-child(1)')?.textContent || '').toLowerCase();
-      const nome = (tr.querySelector('td:nth-child(2)')?.textContent || '').toLowerCase();
-      const fun  = (tr.querySelector('td:nth-child(3)')?.textContent || '').toLowerCase();
-
-      const okMat = !matricula || mat.includes(matricula) || nome.includes(matricula);
-      const okFun = !funcao    || fun.includes(funcao);
-
-      tr.style.display = okMat && okFun ? '' : 'none';
-      if (okMat && okFun) visiveis++;
-    });
-
-    // Feedback se nenhum resultado
-    const empty = Utils.el('prof-empty-filter');
-    if (!visiveis && (matricula || funcao)) {
-      if (!empty) {
-        const div = document.createElement('tr');
-        div.id = 'prof-empty-filter';
-        div.innerHTML = '<td colspan="7" style="text-align:center;padding:1.5rem;color:var(--gray-400);">Nenhum profissional encontrado com esses filtros.</td>';
-        tbody.appendChild(div);
-      }
-    } else {
-      empty?.remove();
-    }
-  };
-
   window.openProfDetail = (id) => {
     const p = profissionais.find(x => x.id === id);
     if (!p) return;
