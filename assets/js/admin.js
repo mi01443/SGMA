@@ -87,6 +87,30 @@
   });
   }
 
+  // Converte qualquer formato de data para YYYY-MM-DD (para input type=date)
+  function toInputDate(val) {
+    if (!val || String(val).trim() === '') return '';
+    const s = String(val).trim();
+    // Já está YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // ISO completo: 2026-05-31T03:00:00.000Z
+    if (s.includes('T') || s.includes('Z')) {
+      const d = new Date(s);
+      if (!isNaN(d)) {
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth()+1).padStart(2,'0');
+        const day = String(d.getUTCDate()).padStart(2,'0');
+        return y+'-'+m+'-'+day;
+      }
+    }
+    // DD/MM/AAAA → YYYY-MM-DD
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+      const parts = s.split('/');
+      return parts[2]+'-'+parts[1]+'-'+parts[0];
+    }
+    return '';
+  }
+
   function fmtDataBR(val) {
     if (!val || String(val).trim() === '') return '';
     const s = String(val).trim();
@@ -220,8 +244,8 @@
     Utils.el('prof-email').value      = p?.email || '';
     Utils.el('prof-telefone').value   = p?.telefone || '';
     Utils.el('prof-endereco').value   = p?.endereco || '';
-    Utils.el('prof-nascimento').value = p?.dt_nascimento || '';
-    Utils.el('prof-admissao').value   = p?.dt_admissao || '';
+    Utils.el('prof-nascimento').value = toInputDate(p?.dt_nascimento);
+    Utils.el('prof-admissao').value   = toInputDate(p?.dt_admissao);
     Utils.el('prof-funcao').value     = p?.funcao || '';
     Utils.el('prof-regime').value     = p?.regime || '';
     Utils.el('prof-usuario').value    = p?.usuario || '';
