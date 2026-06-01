@@ -11,6 +11,7 @@
   // ── Estado global ──
   let profissionais = [];
   let equipamentos  = [];
+  let subSistemas   = [];
   let semanas       = [];
   let motivos       = [];
   let atividades    = [];
@@ -78,6 +79,7 @@
       if (tab === 'semanas')       { await loadSemanas(); }
       if (tab === 'atividades')    { await loadAtividades(); }
       if (tab === 'importar')      { renderImportar(); }
+      if (tab === 'subsistemas')   { await loadSubSistemas(); }
       if (tab === 'motivos')       { await loadMotivos(); }
     } catch (e) {
       if (!silent) Utils.toast('Erro ao carregar: ' + e.message, 'error');
@@ -280,15 +282,15 @@ Essa ação não pode ser desfeita.`)) return;
       tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:2rem;">Nenhum equipamento cadastrado</td></tr>';
       return;
     }
-    tbody.innerHTML = equipamentos.map(e => `
+        tbody.innerHTML = equipamentos.map(e => {
+      const subs = subSistemas.filter(s => s.equipamento_id === e.id && String(s.ativo).toLowerCase() !== 'false');
+      return `
       <tr>
-        <td><span class="badge badge-primary" style="font-family:var(--mono);font-size:.7rem;">${e.tag}</span></td>
-        <td class="fw-500">${e.nome}</td>
-        <td>${e.area || '—'}</td>
-        <td><span class="badge badge-gray">${e.categoria || '—'}</span></td>
+        <td class="fw-500">${e.nome || e.tag}</td>
+        <td>${subs.length ? subs.map(s => `<span class="badge badge-gray" style="margin:1px;">${s.nome}</span>`).join('') : '<span class="text-muted text-xs">Nenhum</span>'}</td>
         <td>
           <label class="toggle">
-            <input type="checkbox" ${e.ativo ? 'checked' : ''} onchange="toggleEq('${e.id}', this.checked)">
+            <input type="checkbox" ${String(e.ativo).toLowerCase() !== 'false' ? 'checked' : ''} onchange="toggleEq('${e.id}', this.checked)">
             <span class="toggle-slider"></span>
           </label>
         </td>
@@ -297,187 +299,14 @@ Essa ação não pode ser desfeita.`)) return;
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
         </td>
-      </tr>`).join('');
-  }
-
-  window.toggleEq = async (id, ativo) => {
-    try { await API.toggleEquipamento(id, ativo); Utils.toast('Atualizado!', 'success'); }
-    catch (e) { Utils.toast('Erro: ' + e.message, 'error'); }
-  };
-
-  window.openEqModal = (id = null) => {
-    const e = id ? equipamentos.find(x => x.id === id) : null;
-    Utils.el('eq-modal-title').textContent = e ? 'Editar Equipamento' : 'Novo Equipamento';
-    Utils.el('eq-id').value          = e?.id || '';
-    Utils.el('eq-tag').value         = e?.tag || '';
-    Utils.el('eq-sub-sistema').value = e?.sub_sistema || '';
-    Utils.openModal('eq-modal');
-  };
-
-  Utils.el('btn-novo-eq')?.addEventListener('click', () => window.openEqModal());
-  Utils.el('btn-eq-cancel')?.addEventListener('click', () => Utils.closeModal('eq-modal'));
-
-  Utils.el('eq-form')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = Utils.el('btn-eq-save');
-    btn.disabled = true;
-    try {
-      const tag        = Utils.el('eq-tag').value.trim().toUpperCase();
-      const subSistema = Utils.el('eq-sub-sistema').value.trim();
-      const idAtual    = Utils.el('eq-id').value;
-
-      if (!tag)        { Utils.toast('Tag é obrigatória', 'error'); btn.disabled = false; return; }
-      if (!subSistema) { Utils.toast('Sub Sistema é obrigatório', 'error'); btn.disabled = false; return; }
-
-      // Verificar duplicata de tag (só em novo cadastro ou se mudou a tag)
-      const eqExistente = equipamentos.find(e => e.tag === tag && e.id !== idAtual);
-      if (eqExistente) {
-        Utils.toast(`Tag "${tag}" já está cadastrada para outro equipamento.`, 'error');
-        btn.disabled = false;
-        return;
-      }
-
-      await API.saveEquipamento({
-        id:          idAtual,
-        nome:        tag,
-        tag:         tag,
-        sub_sistema: subSistema,
-      });
-      Utils.closeModal('eq-modal');
-      Utils.toast('Equipamento salvo!', 'success');
-      await loadEquipamentos();
-    } catch (err) {
-      Utils.toast('Erro: ' + err.message, 'error');
-    } finally { btn.disabled = false; }
-  });
-
-  // ═══════════════════════════════════════
-  // SEMANAS / HH
-  // ═══════════════════════════════════════
-  async function loadSemanas() {
-    const res = await API.getSemanas();
-    semanas = res.semanas || [];
-    renderSemanas();
-  }
-
-  function renderSemanas() {
-    const list = Utils.el('semanas-list');
-    if (!list) return;
-    if (!semanas.length) { list.innerHTML = '<p class="text-muted">Nenhuma semana cadastrada.</p>'; return; }
-
-    list.innerHTML = semanas.map(s => {
-      const pct = s.hh_disponivel ? Math.round(s.hh_programado / s.hh_disponivel * 100) : 0;
-      const realPct = s.hh_disponivel ? Math.round((s.hh_realizado || 0) / s.hh_disponivel * 100) : 0;
-      return `
-      <div class="card mb-3">
-        <div class="card-header">
-          <div>
-            <div class="card-title">${s.id}</div>
-            <div class="text-xs text-muted">${Utils.fmtDate(s.data_inicio)} — ${Utils.fmtDate(s.data_fim)}</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span class="badge ${s.status === 'aberta' ? 'badge-success' : 'badge-gray'}">${s.status}</span>
-            <button class="btn btn-ghost btn-sm btn-icon" onclick="openSemanaModal('${s.id}')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="hh-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;">
-          <div><div class="text-xs text-muted">HH Disponível</div><div style="font-size:1.3rem;font-weight:600;">${s.hh_disponivel}h</div></div>
-          <div><div class="text-xs text-muted">HH Programado</div><div style="font-size:1.3rem;font-weight:600;color:var(--primary);">${s.hh_programado}h</div></div>
-          <div><div class="text-xs text-muted">HH Realizado</div><div style="font-size:1.3rem;font-weight:600;color:var(--success);">${s.hh_realizado || 0}h</div></div>
-        </div>
-        <div class="hh-bar-wrap">
-          <div class="hh-labels"><span>Programado ${pct}%</span><span>Realizado ${realPct}%</span></div>
-          <div class="hh-bar-track">
-            <div class="hh-bar-prog" style="width:${pct}%"></div>
-            <div class="hh-bar-real" style="width:${realPct}%"></div>
-          </div>
-        </div>
-      </div>`;
-    }).join('');
-  }
-
-  window.openSemanaModal = (id = null) => {
-    const s = id ? semanas.find(x => x.id === id) : null;
-    const { start, end } = Utils.weekRange();
-    Utils.el('sem-id').value          = s?.id || '';
-    Utils.el('sem-inicio').value      = s?.data_inicio || start;
-    Utils.el('sem-fim').value         = s?.data_fim || end;
-    Utils.el('sem-hh-disp').value     = s?.hh_disponivel || '';
-    Utils.el('sem-hh-prog').value     = s?.hh_programado || '';
-    Utils.el('sem-status').value      = s?.status || 'planejamento';
-    Utils.el('sem-modal-title').textContent = s ? 'Editar Semana' : 'Nova Semana';
-    Utils.openModal('sem-modal');
-  };
-
-  Utils.el('btn-nova-semana')?.addEventListener('click', () => window.openSemanaModal());
-  Utils.el('btn-sem-cancel')?.addEventListener('click', () => Utils.closeModal('sem-modal'));
-
-  Utils.el('sem-form')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = Utils.el('btn-sem-save');
-    btn.disabled = true;
-    try {
-      await API.saveSemana({
-        id:            Utils.el('sem-id').value,
-        data_inicio:   Utils.el('sem-inicio').value,
-        data_fim:      Utils.el('sem-fim').value,
-        hh_disponivel: parseFloat(Utils.el('sem-hh-disp').value) || 0,
-        hh_programado: parseFloat(Utils.el('sem-hh-prog').value) || 0,
-        status:        Utils.el('sem-status').value,
-      });
-      Utils.closeModal('sem-modal');
-      Utils.toast('Semana salva!', 'success');
-      await loadSemanas();
-    } catch (err) {
-      Utils.toast('Erro: ' + err.message, 'error');
-    } finally { btn.disabled = false; }
-  });
-
-  // ═══════════════════════════════════════
-  // ATIVIDADES (admin)
-  // ═══════════════════════════════════════
-  async function loadAtividades() {
-    const [atRes, eqRes, profRes, semRes] = await Promise.all([
-      API.getAtividades({}),
-      API.getEquipamentos(),
-      API.getProfissionais(),
-      API.getSemanas(),
-    ]);
-    atividades   = atRes.atividades || [];
-    equipamentos = eqRes.equipamentos || [];
-    profissionais = profRes.profissionais || [];
-    semanas      = semRes.semanas || [];
-    renderAtividadesAdmin();
-  }
-
-  function renderAtividadesAdmin() {
-    const tbody = Utils.el('at-tbody');
-    if (!tbody) return;
-    tbody.innerHTML = atividades.slice(0, 50).map(a => `
-      <tr>
-        <td class="text-xs text-muted" style="font-family:var(--mono);">${a.id}</td>
-        <td>${Utils.tipoBadge(a.tipo)}</td>
-        <td><div class="fw-500">${a.equipamento_nome || '—'}</div><div class="text-xs text-muted">${a.equip_tag || ''}</div></td>
-        <td>${Utils.truncate(a.descricao, 50)}</td>
-        <td>${a.tecnico_nome || '—'}</td>
-        <td>${Utils.fmtDate(a.data_programada)}</td>
-        <td>${Utils.statusBadge(a.status)}</td>
-        <td>
-          <button class="btn btn-ghost btn-sm btn-icon" onclick="openAtModal('${a.id}')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>
-          <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteAt('${a.id}')" style="color:var(--danger);">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-          </button>
-        </td>
-      </tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--gray-400);padding:2rem;">Nenhuma atividade</td></tr>';
-  }
-
+      </tr>`;
+    }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:2rem;">Nenhum equipamento</td></tr>';
   window.openAtModal = (id = null) => {
     const a = id ? atividades.find(x => x.id === id) : null;
-    const eqOpts   = equipamentos.map(e => `<option value="${e.id}" ${a?.equipamento_id === e.id ? 'selected' : ''}>${e.tag} — ${e.sub_sistema || e.nome}</option>`).join('');
+    const eqOpts   = equipamentos.map(e => `<option value="${e.id}" ${a?.equipamento_id === e.id ? 'selected' : ''}>${e.nome}</option>`).join('');
+    // Sub sistemas do equipamento já selecionado
+    const subOpts  = (a?.equipamento_id ? subSistemas.filter(s => s.equipamento_id === a.equipamento_id) : [])
+                       .map(s => `<option value="${s.id}" ${a?.sub_sistema_id === s.id ? 'selected' : ''}>${s.nome}</option>`).join('');
     const profOpts  = profissionais.map(p => `<option value="${p.id}" ${a?.tecnico_id === p.id ? 'selected' : ''}>${p.nome}</option>`).join('');
     const semOpts   = semanas.map(s => `<option value="${s.id}" ${a?.semana_id === s.id ? 'selected' : ''}>${s.id}</option>`).join('');
 
@@ -509,18 +338,16 @@ Essa ação não pode ser desfeita.`)) return;
       <div class="form-group"><label class="form-label">Semana</label><select class="form-control" id="at-semana"><option value="">—</option>${semOpts}</select></div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Equipamento (Tag) <span>*</span></label>
-          <select class="form-control" id="at-eq" onchange="
-            const sub = ${JSON.stringify(eqSubMap)}[this.value] || '';
-            const el = document.getElementById('at-sub-sistema');
-            if (el) el.value = sub;
-          "><option value="">Selecione...</option>${eqOpts}</select>
+          <label class="form-label">Equipamento <span>*</span></label>
+          <select class="form-control" id="at-eq" onchange="atualizarSubSistemasAt(this.value)">
+            <option value="">Selecione...</option>${eqOpts}
+          </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Sub Sistema</label>
-          <input type="text" class="form-control" id="at-sub-sistema"
-            value="${a?.sub_sistema || ''}" placeholder="Preenchido automaticamente" readonly
-            style="background:var(--gray-50);color:var(--gray-600);">
+          <label class="form-label">Sub Sistema <span>*</span></label>
+          <select class="form-control" id="at-sub-sistema-id">
+            <option value="">Selecione o equipamento primeiro</option>${subOpts}
+          </select>
         </div>
       </div>
       <div class="form-group"><label class="form-label">Descrição <span>*</span></label><textarea class="form-control" id="at-desc" rows="2">${a?.descricao || ''}</textarea></div>
@@ -543,6 +370,15 @@ Essa ação não pode ser desfeita.`)) return;
       </div>
     `;
     Utils.openModal('at-modal');
+  };
+
+  window.atualizarSubSistemasAt = (eqId) => {
+    const sel = Utils.el('at-sub-sistema-id');
+    if (!sel) return;
+    const subs = subSistemas.filter(s => s.equipamento_id === eqId && String(s.ativo).toLowerCase() !== 'false');
+    sel.innerHTML = subs.length
+      ? '<option value="">Selecione...</option>' + subs.map(s => `<option value="${s.id}">${s.nome}</option>`).join('')
+      : '<option value="">Nenhum sub sistema cadastrado</option>';
   };
 
   window.addPassoAt = () => {
@@ -574,16 +410,16 @@ Essa ação não pode ser desfeita.`)) return;
     try {
       const passos = [...document.querySelectorAll('.passo-input')].map(i => i.value.trim()).filter(Boolean);
       await API.saveAtividade({
-        id:             Utils.el('at-id').value,
-        tipo:           Utils.el('at-tipo').value,
-        prioridade:     Utils.el('at-prio').value,
-        semanaId:       Utils.el('at-semana').value,
-        equipamentoId:  eq,
-        subSistema:     Utils.el('at-sub-sistema')?.value || '',
-        descricao:      desc,
-        tecnicoId:      Utils.el('at-tecnico').value,
-        dataProgramada: Utils.el('at-data').value,
-        hhEstimado:     parseFloat(Utils.el('at-hh').value) || 1,
+        id:              Utils.el('at-id').value,
+        tipo:            Utils.el('at-tipo').value,
+        prioridade:      Utils.el('at-prio').value,
+        semanaId:        Utils.el('at-semana').value,
+        equipamentoId:   eq,
+        subSistemaId:    Utils.el('at-sub-sistema-id')?.value || '',
+        descricao:       desc,
+        tecnicoId:       Utils.el('at-tecnico').value,
+        dataProgramada:  Utils.el('at-data').value,
+        hhEstimado:      parseFloat(Utils.el('at-hh').value) || 1,
         passos,
       });
       Utils.closeModal('at-modal');
@@ -783,6 +619,109 @@ Essa ação não pode ser desfeita.`)) return;
       Utils.closeModal('mot-modal');
       Utils.toast('Motivo salvo!', 'success');
       await loadMotivos();
+    } catch (err) { Utils.toast('Erro: ' + err.message, 'error'); }
+    finally { btn.disabled = false; }
+  });
+
+  // ══════════════════════════════════════════════════════════
+  // SUB SISTEMAS
+  // ══════════════════════════════════════════════════════════
+  async function loadSubSistemas() {
+    const [res, eqRes] = await Promise.all([API.getSubSistemas(), API.getEquipamentos()]);
+    subSistemas  = res.subSistemas || [];
+    equipamentos = eqRes.equipamentos || [];
+
+    // Popular filtro de equipamento
+    const sel = Utils.el('filtro-sub-eq');
+    if (sel) {
+      sel.innerHTML = '<option value="">Todos os equipamentos</option>' +
+        equipamentos.map(e => `<option value="${e.id}">${e.nome}</option>`).join('');
+    }
+
+    renderSubSistemas();
+  }
+
+  function renderSubSistemas() {
+    const tbody = Utils.el('sub-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = subSistemas.map(s => {
+      const eq = equipamentos.find(e => e.id === s.equipamento_id);
+      return `<tr>
+        <td class="fw-500">${eq?.nome || '—'}</td>
+        <td>${s.nome}</td>
+        <td>
+          <label class="toggle">
+            <input type="checkbox" ${String(s.ativo).toLowerCase() !== 'false' ? 'checked' : ''} onchange="toggleSubSistema('${s.id}', this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </td>
+        <td>
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="openSubModal('${s.id}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="deletarSubSistema('${s.id}')" style="color:var(--danger);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+          </button>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--gray-400);">Nenhum sub sistema cadastrado</td></tr>';
+  }
+
+  window.filtrarSubSistemas = (limpar = false) => {
+    if (limpar) {
+      const e = Utils.el('filtro-sub-eq'); if (e) e.value = '';
+      const n = Utils.el('filtro-sub-nome'); if (n) n.value = '';
+    }
+    const eqId = Utils.el('filtro-sub-eq')?.value || '';
+    const nome = (Utils.el('filtro-sub-nome')?.value || '').toLowerCase();
+    Utils.el('sub-tbody')?.querySelectorAll('tr').forEach(tr => {
+      const eqTd   = (tr.querySelector('td:nth-child(1)')?.textContent || '').toLowerCase();
+      const nomeTd = (tr.querySelector('td:nth-child(2)')?.textContent || '').toLowerCase();
+      const eq     = equipamentos.find(e => e.id === eqId);
+      const okEq   = !eqId  || eqTd.includes((eq?.nome || '').toLowerCase());
+      const okNome = !nome   || nomeTd.includes(nome);
+      tr.style.display = okEq && okNome ? '' : 'none';
+    });
+  };
+
+  window.openSubModal = (id = null) => {
+    const s = id ? subSistemas.find(x => x.id === id) : null;
+    Utils.el('sub-id').value  = s?.id || '';
+    Utils.el('sub-nome').value = s?.nome || '';
+    const sel = Utils.el('sub-eq-id');
+    sel.innerHTML = equipamentos.map(e => `<option value="${e.id}" ${s?.equipamento_id === e.id ? 'selected' : ''}>${e.nome}</option>`).join('');
+    Utils.el('sub-modal-title').textContent = s ? 'Editar Sub Sistema' : 'Novo Sub Sistema';
+    Utils.openModal('sub-modal');
+  };
+
+  window.toggleSubSistema = async (id, ativo) => {
+    try { await API.saveSubSistema({ id, ativo: String(ativo) }); Utils.toast('Atualizado!', 'success'); }
+    catch (e) { Utils.toast('Erro: ' + e.message, 'error'); }
+  };
+
+  window.deletarSubSistema = async (id) => {
+    const s = subSistemas.find(x => x.id === id);
+    if (!s || !confirm(`Excluir sub sistema "${s.nome}"?`)) return;
+    try { await API.deletarSubSistema(id); Utils.toast('Excluído!', 'success'); await loadSubSistemas(); }
+    catch (e) { Utils.toast('Erro: ' + e.message, 'error'); }
+  };
+
+  Utils.el('btn-novo-sub')?.addEventListener('click', () => window.openSubModal());
+  Utils.el('btn-sub-cancel')?.addEventListener('click', () => Utils.closeModal('sub-modal'));
+  Utils.el('sub-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = Utils.el('btn-sub-save');
+    btn.disabled = true;
+    try {
+      await API.saveSubSistema({
+        id:             Utils.el('sub-id').value,
+        equipamento_id: Utils.el('sub-eq-id').value,
+        nome:           Utils.el('sub-nome').value.trim(),
+        ativo:          'true',
+      });
+      Utils.closeModal('sub-modal');
+      Utils.toast('Sub sistema salvo!', 'success');
+      await loadSubSistemas();
     } catch (err) { Utils.toast('Erro: ' + err.message, 'error'); }
     finally { btn.disabled = false; }
   });
