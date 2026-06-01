@@ -615,9 +615,7 @@
   function renderNovaAtividade() {
     const form = Utils.el('nova-form');
     if (!form) return;
-    const eqSubMap = {};
-    equipamentos.forEach(e => { eqSubMap[e.id] = e.sub_sistema || ''; });
-    const eqOpts = equipamentos.map(e => `<option value="${e.id}">${e.tag}${e.sub_sistema ? ' — ' + e.sub_sistema : ''}</option>`).join('');
+    const eqOpts = equipamentos.map(e => `<option value="${e.id}">${e.nome || e.tag}</option>`).join('');
     form.innerHTML = `
       <div class="card" style="max-width:600px;">
         <div class="card-header"><span class="card-title">Nova Atividade</span></div>
@@ -636,18 +634,16 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Equipamento (Tag) <span>*</span></label>
-            <select class="form-control" id="nova-eq" onchange="
-              const sub = ${JSON.stringify(eqSubMap)}[this.value] || '';
-              const el = document.getElementById('nova-sub-sistema');
-              if (el) el.value = sub;
-            "><option value="">Selecione...</option>${eqOpts}</select>
+            <label class="form-label">Equipamento <span>*</span></label>
+            <select class="form-control" id="nova-eq" onchange="carregarSubSistemasNova(this.value)">
+              <option value="">Selecione...</option>${eqOpts}
+            </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Sub Sistema</label>
-            <input type="text" class="form-control" id="nova-sub-sistema" readonly
-              placeholder="Preenchido automaticamente"
-              style="background:var(--gray-50);color:var(--gray-600);">
+            <label class="form-label">Sub Sistema <span>*</span></label>
+            <select class="form-control" id="nova-sub-sistema-id">
+              <option value="">Selecione o equipamento primeiro</option>
+            </select>
           </div>
         </div>
         <div class="form-group">
@@ -681,7 +677,7 @@
         await API.saveAtividade({
           tipo:           Utils.el('nova-tipo').value,
           equipamentoId:  eqId,
-          subSistema:     Utils.el('nova-sub-sistema')?.value || '',
+          subSistemaId:   Utils.el('nova-sub-sistema-id')?.value || '',
           descricao:      desc,
           tecnicoId:      session.id,
           prioridade:     Utils.el('nova-prio').value,
@@ -738,6 +734,19 @@
   }
 
   // expor setView globalmente para o HTML
+  window.carregarSubSistemasNova = async (eqId) => {
+    const sel = Utils.el('nova-sub-sistema-id');
+    if (!sel) return;
+    if (!eqId) { sel.innerHTML = '<option value="">Selecione o equipamento primeiro</option>'; return; }
+    try {
+      const res  = await API.getSubSistemas(eqId);
+      const subs = res.subSistemas || [];
+      sel.innerHTML = subs.length
+        ? '<option value="">Selecione...</option>' + subs.map(s => `<option value="${s.id}">${s.nome}</option>`).join('')
+        : '<option value="">Nenhum sub sistema cadastrado</option>';
+    } catch { sel.innerHTML = '<option value="">Erro ao carregar</option>'; }
+  };
+
   window.setView  = setView;
   window.loadAll  = loadAll;
 
