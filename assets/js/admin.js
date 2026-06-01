@@ -454,9 +454,8 @@ Essa ação não pode ser desfeita.`)) return;
     btn.disabled = true;
     try {
       const passos = [...document.querySelectorAll('.passo-input')].map(i => i.value.trim()).filter(Boolean);
-      const om = Utils.el('at-om').value.trim();
-      if (!om) { Utils.toast('Número da OM é obrigatório', 'error'); return; }
-      // OM pode ser usada como ID
+      const om = Utils.el('at-om')?.value.trim() || '';
+      if (!om) { Utils.toast('Número da OM é obrigatório', 'error'); btn.disabled = false; return; }
       await API.saveAtividade({
         id:              om,
         om:              om,
@@ -474,7 +473,10 @@ Essa ação não pode ser desfeita.`)) return;
       Utils.closeModal('at-modal');
       Utils.toast('Atividade salva!', 'success');
       await loadAtividades();
-    } catch (err) { Utils.toast('Erro: ' + err.message, 'error'); }
+    } catch (err) {
+      console.error('Erro saveAtividade admin:', err);
+      Utils.toast('Erro: ' + (err.message || 'Verifique o console'), 'error');
+    }
     finally { btn.disabled = false; }
   });
 
@@ -768,9 +770,8 @@ Essa ação não pode ser desfeita.`)) return;
     btn.disabled = true;
     try {
       const passos = [...document.querySelectorAll('.passo-input')].map(i => i.value.trim()).filter(Boolean);
-      const om = Utils.el('at-om').value.trim();
-      if (!om) { Utils.toast('Número da OM é obrigatório', 'error'); return; }
-      // OM pode ser usada como ID
+      const om = Utils.el('at-om')?.value.trim() || '';
+      if (!om) { Utils.toast('Número da OM é obrigatório', 'error'); btn.disabled = false; return; }
       await API.saveAtividade({
         id:              om,
         om:              om,
@@ -788,7 +789,10 @@ Essa ação não pode ser desfeita.`)) return;
       Utils.closeModal('at-modal');
       Utils.toast('Atividade salva!', 'success');
       await loadAtividades();
-    } catch (err) { Utils.toast('Erro: ' + err.message, 'error'); }
+    } catch (err) {
+      console.error('Erro saveAtividade admin:', err);
+      Utils.toast('Erro: ' + (err.message || 'Verifique o console'), 'error');
+    }
     finally { btn.disabled = false; }
   });
 
