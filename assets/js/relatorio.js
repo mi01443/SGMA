@@ -292,4 +292,11 @@
   }
 
   await initFiltros();
+
+  // ── Auto-refresh dos selects de filtro a cada 30s ──
+  // (Relatório não regera automaticamente, só os selects de semana/técnico)
+  setInterval(async () => {
+    try { await initFiltros(); } catch {}
+  }, 30000);
+
 })();
