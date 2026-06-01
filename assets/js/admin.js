@@ -303,6 +303,43 @@ Essa ação não pode ser desfeita.`)) return;
     }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:2rem;">Nenhum equipamento</td></tr>';
   }
 
+  window.toggleEq = async (id, ativo) => {
+    try { await API.toggleEquipamento(id, ativo); Utils.toast('Atualizado!', 'success'); }
+    catch (e) { Utils.toast('Erro: ' + e.message, 'error'); }
+  };
+
+  window.openEqModal = (id = null) => {
+    const e = id ? equipamentos.find(x => x.id === id) : null;
+    Utils.el('eq-modal-title').textContent = e ? 'Editar Equipamento' : 'Novo Equipamento';
+    Utils.el('eq-id').value   = e?.id || '';
+    Utils.el('eq-nome').value = e?.nome || '';
+    Utils.openModal('eq-modal');
+  };
+
+  Utils.el('btn-novo-eq')?.addEventListener('click', () => window.openEqModal());
+  Utils.el('btn-eq-cancel')?.addEventListener('click', () => Utils.closeModal('eq-modal'));
+
+  Utils.el('eq-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = Utils.el('btn-eq-save');
+    btn.disabled = true;
+    try {
+      const nome    = Utils.el('eq-nome').value.trim();
+      const idAtual = Utils.el('eq-id').value;
+      if (!nome) { Utils.toast('Nome é obrigatório', 'error'); btn.disabled = false; return; }
+
+      const dup = equipamentos.find(e => e.nome.toLowerCase() === nome.toLowerCase() && e.id !== idAtual);
+      if (dup) { Utils.toast(`Equipamento "${nome}" já está cadastrado.`, 'error'); btn.disabled = false; return; }
+
+      await API.saveEquipamento({ id: idAtual, nome, tag: nome });
+      Utils.closeModal('eq-modal');
+      Utils.toast('Equipamento salvo!', 'success');
+      await loadEquipamentos();
+    } catch (err) {
+      Utils.toast('Erro: ' + err.message, 'error');
+    } finally { btn.disabled = false; }
+  });
+
   window.openAtModal = (id = null) => {
     const a = id ? atividades.find(x => x.id === id) : null;
     const eqOpts   = equipamentos.map(e => `<option value="${e.id}" ${a?.equipamento_id === e.id ? 'selected' : ''}>${e.nome}</option>`).join('');
