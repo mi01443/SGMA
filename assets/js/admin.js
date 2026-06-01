@@ -89,11 +89,25 @@
 
   function fmtDataBR(val) {
     if (!val || String(val).trim() === '') return '';
-    // Aceita YYYY-MM-DD ou DD/MM/YYYY
     const s = String(val).trim();
-    if (s.includes('/')) return s; // já está formatado
+    // Já está no formato DD/MM/AAAA
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+    // Formato ISO completo: 2026-05-31T03:00:00.000Z ou similar
+    if (s.includes('T') || s.includes('Z')) {
+      const date = new Date(s);
+      if (!isNaN(date)) {
+        // Usar UTC para evitar deslocamento de fuso
+        const d = String(date.getUTCDate()).padStart(2,'0');
+        const m = String(date.getUTCMonth()+1).padStart(2,'0');
+        const y = date.getUTCFullYear();
+        return d+'/'+m+'/'+y;
+      }
+    }
+    // Formato YYYY-MM-DD simples
     const parts = s.split('-');
-    if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
+    if (parts.length === 3 && parts[0].length === 4) {
+      return parts[2].slice(0,2) + '/' + parts[1] + '/' + parts[0];
+    }
     return s;
   }
 
