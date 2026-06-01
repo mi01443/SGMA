@@ -60,6 +60,7 @@
         <button class="admin-tab" data-tab="semanas">📅 Semanas / HH</button>
         <button class="admin-tab" data-tab="atividades">📋 Atividades</button>
         <button class="admin-tab" data-tab="importar">📥 Importar Excel</button>
+        <button class="admin-tab" data-tab="subsistemas">⚙️ Sub Sistemas</button>
         <button class="admin-tab" data-tab="motivos">📌 Motivos</button>
       </div>
 
@@ -145,7 +146,7 @@
         <div class="card">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Tag</th><th>Sub Sistema</th><th>Ativo</th><th>A&ccedil;&otilde;es</th></tr></thead>
+              <thead><tr><th>Nome</th><th>Sub Sistemas</th><th>Ativo</th><th>Ações</th></tr></thead>
               <tbody id="eq-tbody"><tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--gray-400);">Carregando...</td></tr></tbody>
             </table>
           </div>
@@ -195,6 +196,29 @@
         <div id="import-preview" class="import-preview hidden"></div>
       </div>
 
+      <!-- ── SUB SISTEMAS ── -->
+      <div class="tab-content hidden" data-tab="subsistemas">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;flex-wrap:wrap;gap:8px;">
+          <h2 style="margin:0;">Sub Sistemas</h2>
+          <button class="btn btn-primary btn-sm" id="btn-novo-sub">+ Novo Sub Sistema</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:1rem;">
+          <select id="filtro-sub-eq" class="form-control" onchange="filtrarSubSistemas()">
+            <option value="">Todos os equipamentos</option>
+          </select>
+          <input type="text" id="filtro-sub-nome" class="form-control" placeholder="🔍 Nome do sub sistema" oninput="filtrarSubSistemas()">
+          <button class="btn btn-ghost btn-sm" onclick="filtrarSubSistemas(true)">✕</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Equipamento</th><th>Sub Sistema</th><th>Ativo</th><th>Ações</th></tr></thead>
+              <tbody id="sub-tbody"><tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--gray-400);">Carregando...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- ── MOTIVOS ── -->
       <div class="tab-content hidden" data-tab="motivos">
         <div class="section-toolbar">
@@ -207,6 +231,31 @@
         </div>
       </div>
     </div><!-- /page-content -->
+  </div>
+</div>
+
+<!-- Sub Sistema -->
+<div id="sub-modal" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="sub-modal-title">Novo Sub Sistema</h3>
+      <button class="btn btn-ghost btn-sm btn-icon" onclick="Utils.closeModal('sub-modal')">✕</button>
+    </div>
+    <form id="sub-form">
+      <input type="hidden" id="sub-id">
+      <div class="form-group">
+        <label class="form-label">Equipamento <span>*</span></label>
+        <select class="form-control" id="sub-eq-id" required></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nome do Sub Sistema <span>*</span></label>
+        <input type="text" id="sub-nome" class="form-control" required placeholder="Ex: Translação, Giro, Elevação">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-sub-cancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btn-sub-save">Salvar</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -329,17 +378,12 @@
     <form id="eq-form">
       <input type="hidden" id="eq-id">
       <div class="form-group">
-        <label class="form-label">Tag do Equipamento <span>*</span></label>
-        <input type="text" id="eq-tag" class="form-control" required placeholder="Ex: CLP-001"
-          oninput="this.value=this.value.toUpperCase()">
-        <div class="form-hint">Identificador único. A pasta no Drive será nomeada com esta tag.</div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Sub Sistema <span>*</span></label>
-        <input type="text" id="eq-sub-sistema" class="form-control" required placeholder="Ex: Sistema de Correia, Linha de Pintura">
+        <label class="form-label">Nome do Equipamento <span>*</span></label>
+        <input type="text" id="eq-nome" class="form-control" required placeholder="Ex: ER1A, Correia Principal">
+        <div class="form-hint">Nome único do equipamento. A pasta no Drive será criada com este nome.</div>
       </div>
       <div class="alert alert-info" style="font-size:.8rem;">
-        &#128161; Ao salvar, uma pasta com o nome da Tag será criada no Google Drive para as fotos.
+        &#128161; Após salvar, cadastre os Sub Sistemas deste equipamento na aba Sub Sistemas.
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="btn-eq-cancel">Cancelar</button>
