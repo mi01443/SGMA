@@ -87,6 +87,57 @@
   });
   }
 
+  function fmtDataBR(val) {
+    if (!val || String(val).trim() === '') return '';
+    // Aceita YYYY-MM-DD ou DD/MM/YYYY
+    const s = String(val).trim();
+    if (s.includes('/')) return s; // já está formatado
+    const parts = s.split('-');
+    if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
+    return s;
+  }
+
+  // ── Filtros ──
+  window.filtrarProfissionais = (limpar = false) => {
+    if (limpar) {
+      const mEl = Utils.el('filtro-prof-matricula');
+      const fEl = Utils.el('filtro-prof-funcao');
+      if (mEl) mEl.value = '';
+      if (fEl) fEl.value = '';
+    }
+    const matricula = (Utils.el('filtro-prof-matricula')?.value || '').toLowerCase().trim();
+    const funcao    = (Utils.el('filtro-prof-funcao')?.value || '').toLowerCase().trim();
+
+    const tbody = Utils.el('prof-tbody');
+    if (!tbody) return;
+
+    let visiveis = 0;
+    tbody.querySelectorAll('tr').forEach(tr => {
+      const mat  = (tr.querySelector('td:nth-child(1)')?.textContent || '').toLowerCase();
+      const nome = (tr.querySelector('td:nth-child(2)')?.textContent || '').toLowerCase();
+      const fun  = (tr.querySelector('td:nth-child(3)')?.textContent || '').toLowerCase();
+
+      const okMat = !matricula || mat.includes(matricula) || nome.includes(matricula);
+      const okFun = !funcao    || fun.includes(funcao);
+
+      tr.style.display = okMat && okFun ? '' : 'none';
+      if (okMat && okFun) visiveis++;
+    });
+
+    // Feedback se nenhum resultado
+    const empty = Utils.el('prof-empty-filter');
+    if (!visiveis && (matricula || funcao)) {
+      if (!empty) {
+        const div = document.createElement('tr');
+        div.id = 'prof-empty-filter';
+        div.innerHTML = '<td colspan="7" style="text-align:center;padding:1.5rem;color:var(--gray-400);">Nenhum profissional encontrado com esses filtros.</td>';
+        tbody.appendChild(div);
+      }
+    } else {
+      empty?.remove();
+    }
+  };
+
   window.openProfDetail = (id) => {
     const p = profissionais.find(x => x.id === id);
     if (!p) return;
@@ -113,13 +164,13 @@
       row('E-mail',          p.email),
       row('Telefone',        p.telefone),
       row('Endereço',        p.endereco),
-      row('Nascimento',      p.dt_nascimento ? new Date(p.dt_nascimento+'T00:00:00').toLocaleDateString('pt-BR') : ''),
+      row('Nascimento',      fmtDataBR(p.dt_nascimento)),
     ].join('') || '<span class="text-muted">—</span>';
 
     Utils.el('pd-profissionais').innerHTML = [
       row('Função',          p.funcao),
       row('Regime',          p.regime),
-      row('Admissão',        p.dt_admissao ? new Date(p.dt_admissao+'T00:00:00').toLocaleDateString('pt-BR') : ''),
+      row('Admissão',        fmtDataBR(p.dt_admissao)),
       row('HH/semana',       p.hh_semana ? p.hh_semana + 'h' : ''),
     ].join('') || '<span class="text-muted">—</span>';
 
