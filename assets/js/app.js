@@ -615,7 +615,9 @@
   function renderNovaAtividade() {
     const form = Utils.el('nova-form');
     if (!form) return;
-    const eqOpts = equipamentos.map(e => `<option value="${e.id}">${e.nome} (${e.tag})</option>`).join('');
+    const eqSubMap = {};
+    equipamentos.forEach(e => { eqSubMap[e.id] = e.sub_sistema || ''; });
+    const eqOpts = equipamentos.map(e => `<option value="${e.id}">${e.tag}${e.sub_sistema ? ' — ' + e.sub_sistema : ''}</option>`).join('');
     form.innerHTML = `
       <div class="card" style="max-width:600px;">
         <div class="card-header"><span class="card-title">Nova Atividade</span></div>
@@ -632,9 +634,21 @@
             <select class="form-control" id="nova-prio"><option>Normal</option><option>Alta</option><option>Urgente</option></select>
           </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Equipamento <span>*</span></label>
-          <select class="form-control" id="nova-eq"><option value="">Selecione...</option>${eqOpts}</select>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Equipamento (Tag) <span>*</span></label>
+            <select class="form-control" id="nova-eq" onchange="
+              const sub = ${JSON.stringify(eqSubMap)}[this.value] || '';
+              const el = document.getElementById('nova-sub-sistema');
+              if (el) el.value = sub;
+            "><option value="">Selecione...</option>${eqOpts}</select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Sub Sistema</label>
+            <input type="text" class="form-control" id="nova-sub-sistema" readonly
+              placeholder="Preenchido automaticamente"
+              style="background:var(--gray-50);color:var(--gray-600);">
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">Descrição <span>*</span></label>
@@ -667,6 +681,7 @@
         await API.saveAtividade({
           tipo:           Utils.el('nova-tipo').value,
           equipamentoId:  eqId,
+          subSistema:     Utils.el('nova-sub-sistema')?.value || '',
           descricao:      desc,
           tecnicoId:      session.id,
           prioridade:     Utils.el('nova-prio').value,
