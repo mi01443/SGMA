@@ -322,12 +322,26 @@ Essa ação não pode ser desfeita.`)) return;
     const btn = Utils.el('btn-eq-save');
     btn.disabled = true;
     try {
-      const tag = Utils.el('eq-tag').value.trim().toUpperCase();
+      const tag        = Utils.el('eq-tag').value.trim().toUpperCase();
+      const subSistema = Utils.el('eq-sub-sistema').value.trim();
+      const idAtual    = Utils.el('eq-id').value;
+
+      if (!tag)        { Utils.toast('Tag é obrigatória', 'error'); btn.disabled = false; return; }
+      if (!subSistema) { Utils.toast('Sub Sistema é obrigatório', 'error'); btn.disabled = false; return; }
+
+      // Verificar duplicata de tag (só em novo cadastro ou se mudou a tag)
+      const eqExistente = equipamentos.find(e => e.tag === tag && e.id !== idAtual);
+      if (eqExistente) {
+        Utils.toast(`Tag "${tag}" já está cadastrada para outro equipamento.`, 'error');
+        btn.disabled = false;
+        return;
+      }
+
       await API.saveEquipamento({
-        id:         Utils.el('eq-id').value,
-        nome:       tag,
-        tag:        tag,
-        sub_sistema:Utils.el('eq-sub-sistema').value.trim(),
+        id:          idAtual,
+        nome:        tag,
+        tag:         tag,
+        sub_sistema: subSistema,
       });
       Utils.closeModal('eq-modal');
       Utils.toast('Equipamento salvo!', 'success');
@@ -463,11 +477,15 @@ Essa ação não pode ser desfeita.`)) return;
 
   window.openAtModal = (id = null) => {
     const a = id ? atividades.find(x => x.id === id) : null;
-    const eqOpts   = equipamentos.map(e => `<option value="${e.id}" ${a?.equipamento_id === e.id ? 'selected' : ''}>${e.nome} (${e.tag})</option>`).join('');
+    const eqOpts   = equipamentos.map(e => `<option value="${e.id}" ${a?.equipamento_id === e.id ? 'selected' : ''}>${e.tag} — ${e.sub_sistema || e.nome}</option>`).join('');
     const profOpts  = profissionais.map(p => `<option value="${p.id}" ${a?.tecnico_id === p.id ? 'selected' : ''}>${p.nome}</option>`).join('');
     const semOpts   = semanas.map(s => `<option value="${s.id}" ${a?.semana_id === s.id ? 'selected' : ''}>${s.id}</option>`).join('');
 
     Utils.el('at-modal-title').textContent = a ? 'Editar Atividade' : 'Nova Atividade';
+    // Montar opcoes de sub_sistema por equipamento para uso no change
+    const eqSubMap = {};
+    equipamentos.forEach(e => { eqSubMap[e.id] = e.sub_sistema || ''; });
+
     Utils.el('at-modal-body').innerHTML = `
       <input type="hidden" id="at-id" value="${a?.id || ''}">
       <div class="form-row">
@@ -489,7 +507,22 @@ Essa ação não pode ser desfeita.`)) return;
         </div>
       </div>
       <div class="form-group"><label class="form-label">Semana</label><select class="form-control" id="at-semana"><option value="">—</option>${semOpts}</select></div>
-      <div class="form-group"><label class="form-label">Equipamento <span>*</span></label><select class="form-control" id="at-eq"><option value="">Selecione...</option>${eqOpts}</select></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Equipamento (Tag) <span>*</span></label>
+          <select class="form-control" id="at-eq" onchange="
+            const sub = ${JSON.stringify(eqSubMap)}[this.value] || '';
+            const el = document.getElementById('at-sub-sistema');
+            if (el) el.value = sub;
+          "><option value="">Selecione...</option>${eqOpts}</select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sub Sistema</label>
+          <input type="text" class="form-control" id="at-sub-sistema"
+            value="${a?.sub_sistema || ''}" placeholder="Preenchido automaticamente" readonly
+            style="background:var(--gray-50);color:var(--gray-600);">
+        </div>
+      </div>
       <div class="form-group"><label class="form-label">Descrição <span>*</span></label><textarea class="form-control" id="at-desc" rows="2">${a?.descricao || ''}</textarea></div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Técnico responsável</label><select class="form-control" id="at-tecnico"><option value="">—</option>${profOpts}</select></div>
@@ -546,6 +579,7 @@ Essa ação não pode ser desfeita.`)) return;
         prioridade:     Utils.el('at-prio').value,
         semanaId:       Utils.el('at-semana').value,
         equipamentoId:  eq,
+        subSistema:     Utils.el('at-sub-sistema')?.value || '',
         descricao:      desc,
         tecnicoId:      Utils.el('at-tecnico').value,
         dataProgramada: Utils.el('at-data').value,
