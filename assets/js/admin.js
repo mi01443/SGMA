@@ -136,7 +136,7 @@
 
   // Converte qualquer formato de data para YYYY-MM-DD (para input type=date)
   window.openProfDetail = (id) => {
-    const p = profissionais.find(x => x.id === id);
+    const p = profissionais.find(x => String(x.id) === String(id));
     if (!p) return;
 
     const isAtivo = String(p.ativo).toLowerCase() !== 'false';
@@ -196,7 +196,7 @@
   };
 
   window.deletarProfissional = async (id) => {
-    const p = profissionais.find(x => x.id === id);
+    const p = profissionais.find(x => String(x.id) === String(id));
     if (!p) return;
     if (!confirm(`Excluir o profissional "${p.nome}" (matrícula ${p.id})?
 
@@ -210,7 +210,7 @@ Essa ação não pode ser desfeita.`)) return;
   };
 
   window.openProfModal = (id = null) => {
-    const p = id ? profissionais.find(x => x.id === id) : null;
+    const p = id ? profissionais.find(x => String(x.id) === String(id)) : null;
     Utils.el('prof-modal-title').textContent = p ? 'Editar Profissional' : 'Novo Profissional';
     Utils.el('prof-id').value         = p?.id || '';
     Utils.el('prof-matricula').value  = p?.id || '';
@@ -308,7 +308,7 @@ Essa ação não pode ser desfeita.`)) return;
   };
 
   window.openEqModal = (id = null) => {
-    const e = id ? equipamentos.find(x => x.id === id) : null;
+    const e = id ? equipamentos.find(x => String(x.id) === String(id)) : null;
     Utils.el('eq-modal-title').textContent = e ? 'Editar Equipamento' : 'Novo Equipamento';
     Utils.el('eq-id').value   = e?.id || '';
     Utils.el('eq-nome').value = e?.nome || '';
@@ -340,7 +340,7 @@ Essa ação não pode ser desfeita.`)) return;
   });
 
   window.openAtModal = (id = null) => {
-    const a = id ? atividades.find(x => x.id === id) : null;
+    const a = id ? atividades.find(x => String(x.id) === String(id)) : null;
     const eqOpts   = equipamentos.map(e => `<option value="${e.id}" ${a?.equipamento_id === e.id ? 'selected' : ''}>${e.nome}</option>`).join('');
     // Sub sistemas do equipamento já selecionado
     const subOpts  = (a?.equipamento_id ? subSistemas.filter(s => s.equipamento_id === a.equipamento_id) : [])
@@ -667,7 +667,7 @@ Essa ação não pode ser desfeita.`)) return;
   }
 
   window.openSemanaModal = (id = null) => {
-    const s = id ? semanas.find(x => x.id === id) : null;
+    const s = id ? semanas.find(x => String(x.id) === String(id)) : null;
     const { start, end } = Utils.weekRange();
     Utils.el('sem-id').value          = s?.id || '';
     Utils.el('sem-inicio').value      = s?.data_inicio || start;
@@ -825,7 +825,7 @@ Essa ação não pode ser desfeita.`)) return;
   }
 
   window.openMotivoModal = (id = null) => {
-    const m = id ? motivos.find(x => x.id === id) : null;
+    const m = id ? motivos.find(x => String(x.id) === String(id)) : null;
     Utils.el('mot-id').value        = m?.id || '';
     Utils.el('mot-desc').value      = m?.descricao || '';
     Utils.el('mot-categoria').value = m?.categoria || 'Disponibilidade';
@@ -916,7 +916,7 @@ Essa ação não pode ser desfeita.`)) return;
   };
 
   window.openSubModal = (id = null) => {
-    const s = id ? subSistemas.find(x => x.id === id) : null;
+    const s = id ? subSistemas.find(x => String(x.id) === String(id)) : null;
     Utils.el('sub-id').value  = s?.id || '';
     Utils.el('sub-nome').value = s?.nome || '';
     const sel = Utils.el('sub-eq-id');
@@ -931,7 +931,7 @@ Essa ação não pode ser desfeita.`)) return;
   };
 
   window.deletarSubSistema = async (id) => {
-    const s = subSistemas.find(x => x.id === id);
+    const s = subSistemas.find(x => String(x.id) === String(id));
     if (!s || !confirm(`Excluir sub sistema "${s.nome}"?`)) return;
     try { await API.deletarSubSistema(id); Utils.toast('Excluído!', 'success'); await loadSubSistemas(); }
     catch (e) { Utils.toast('Erro: ' + e.message, 'error'); }
