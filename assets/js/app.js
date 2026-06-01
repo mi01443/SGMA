@@ -371,7 +371,7 @@
   // PAINEL DE DETALHE
   // ══════════════════════════════════════════════════════
   function openDetail(id) {
-    currentAtiv  = atividades.find(a => a.id === id);
+    currentAtiv  = atividades.find(a => String(a.id) === String(id));
     if (!currentAtiv) return;
     fotosBefore  = [];
     fotosAfter   = [];
@@ -432,7 +432,7 @@
     el.querySelectorAll('.checklist-cb').forEach(cb => {
       cb.addEventListener('change', async () => {
         try {
-          await API.updatePasso(currentAtiv.id, cb.dataset.passoId, cb.checked);
+          await API.updatePasso(String(currentAtiv.id), cb.dataset.passoId, cb.checked);
           const p = currentAtiv.passos.find(p => p.id === cb.dataset.passoId);
           if (p) { p.concluido = cb.checked; p.concluido_em = new Date().toISOString(); }
         } catch {
@@ -550,7 +550,7 @@
             fotosAntes:   JSON.stringify(linksAntes),
             fotosDepois:  JSON.stringify(linksDepois),
           });
-          const idx = atividades.findIndex(a => a.id === currentAtiv.id);
+          const idx = atividades.findIndex(a => String(a.id) === String(currentAtiv.id));
           if (idx >= 0) atividades[idx].status = selectedStatus;
           Utils.toast('Execução registrada!', 'success');
           closeDetailPanel();
