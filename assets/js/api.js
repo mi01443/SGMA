@@ -9,7 +9,7 @@ const API = (() => {
 
   // ── CONFIGURAÇÃO ──────────────────────────────────────────────
   const CONFIG = {
-    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbz3j71ZckJFLDsy8aP1BlSB0Nnwnbc-nILXCoDBLqNvuRYmuMNlcq1X7NlChSm82V8-rQ/exec',
+    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbx8YFOfNZTXy4bg13u5ap99QL1yij7fckakp2LlBcQOAcQ-yQStutdbBZT9RayMOaHfOg/exec',
   };
   // ──────────────────────────────────────────────────────────────
 
@@ -70,6 +70,16 @@ const API = (() => {
     // ── Equipamentos ──
     getEquipamentos: () =>
       request('getEquipamentos'),
+
+    // ── Sub Sistemas ──
+    getSubSistemas: (equipamentoId) =>
+      request('getSubSistemas', equipamentoId ? { equipamentoId } : {}),
+
+    saveSubSistema: (dados) =>
+      request('saveSubSistema', dados),
+
+    deletarSubSistema: (id) =>
+      request('deletarSubSistema', { id }),
 
     saveEquipamento: (dados) =>
       request('saveEquipamento', dados),
