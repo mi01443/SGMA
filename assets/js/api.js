@@ -9,7 +9,7 @@ const API = (() => {
 
   // ── CONFIGURAÇÃO ──────────────────────────────────────────────
   const CONFIG = {
-    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwJOK3GUIwcYe69L8BKQmnEyu91aNhoM1l6cVPcVPQoydyANEdst1DxZqFbiVwMUClzwQ/exec',
+    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwlqqMLw_MqyWw-ieLkYePhpwaKwMHrEjN5vYnigUpH30EbKZgLB_pNVtTef9n1CRMTNw/exec',
   };
   // ──────────────────────────────────────────────────────────────
 
@@ -86,6 +86,9 @@ const API = (() => {
 
     toggleProfissional: (id, ativo) =>
       request('toggleProfissional', { id, ativo }),
+
+    deletarProfissional: (id) =>
+      request('deletarProfissional', { id }),
 
     // ── Semanas ──
     getSemanas: () =>
