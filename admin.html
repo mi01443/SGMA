@@ -126,9 +126,10 @@
               <div style="font-size:.68rem;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.07em;margin:12px 0 8px;">Acesso ao Sistema</div>
               <div id="pd-acesso" style="font-size:.825rem;display:grid;gap:6px;"></div>
 
-              <div style="margin-top:1.25rem;display:flex;gap:8px;">
-                <button class="btn btn-secondary btn-sm flex-1" id="pd-btn-editar">Editar</button>
-                <button class="btn btn-ghost btn-sm flex-1" id="pd-btn-toggle"></button>
+              <div style="margin-top:1.25rem;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <button class="btn btn-secondary btn-sm" id="pd-btn-editar">&#9998; Editar</button>
+                <button class="btn btn-ghost btn-sm" id="pd-btn-toggle"></button>
+                <button class="btn btn-danger btn-sm" id="pd-btn-deletar" style="grid-column:1/-1;">&#128465; Excluir profissional</button>
               </div>
             </div>
           </div>
@@ -144,7 +145,7 @@
         <div class="card">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Tag</th><th>Nome</th><th>Área</th><th>Categoria</th><th>Ativo</th><th>Ações</th></tr></thead>
+              <thead><tr><th>Tag</th><th>Sub Sistema</th><th>Ativo</th><th>A&ccedil;&otilde;es</th></tr></thead>
               <tbody id="eq-tbody"><tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--gray-400);">Carregando...</td></tr></tbody>
             </table>
           </div>
@@ -327,32 +328,18 @@
     </div>
     <form id="eq-form">
       <input type="hidden" id="eq-id">
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Nome <span>*</span></label>
-          <input type="text" id="eq-nome" class="form-control" required placeholder="CLP Correia 01">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Tag <span>*</span></label>
-          <input type="text" id="eq-tag" class="form-control" required placeholder="CLP-001">
-        </div>
+      <div class="form-group">
+        <label class="form-label">Tag do Equipamento <span>*</span></label>
+        <input type="text" id="eq-tag" class="form-control" required placeholder="Ex: CLP-001, INV-002"
+          oninput="this.value=this.value.toUpperCase()">
+        <div class="form-hint">A tag será usada como nome da pasta no Google Drive.</div>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Área / Linha</label>
-          <input type="text" id="eq-area" class="form-control" placeholder="Linha 1">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Categoria</label>
-          <select id="eq-categoria" class="form-control">
-            <option>CLP</option><option>Inversor</option><option>Motor</option>
-            <option>Sensor</option><option>Painel Elétrico</option><option>Compressor</option>
-            <option>Robô</option><option>Esteira</option><option>Bomba</option><option>Outro</option>
-          </select>
-        </div>
+      <div class="form-group">
+        <label class="form-label">Sub Sistema</label>
+        <input type="text" id="eq-sub-sistema" class="form-control" placeholder="Ex: Sistema de Correia, Linha de Pintura">
       </div>
       <div class="alert alert-info" style="font-size:.8rem;">
-        💡 Ao salvar, uma pasta será criada automaticamente no Google Drive para as fotos deste equipamento.
+        💡 Ao salvar, uma pasta com o nome da Tag será criada no Google Drive para as fotos.
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="btn-eq-cancel">Cancelar</button>
