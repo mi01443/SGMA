@@ -607,6 +607,180 @@ Essa ação não pode ser desfeita.`)) return;
     } finally { Utils.hideLoading(); }
   }
 
+
+  // ═══════════════════════════════════════
+  // SEMANAS / HH
+  // ═══════════════════════════════════════
+  async function loadSemanas() {
+    const res = await API.getSemanas();
+    semanas = res.semanas || [];
+    renderSemanas();
+  }
+
+  function renderSemanas() {
+    const list = Utils.el('semanas-list');
+    if (!list) return;
+    if (!semanas.length) { list.innerHTML = '<p class="text-muted">Nenhuma semana cadastrada.</p>'; return; }
+    list.innerHTML = semanas.map(s => {
+      const pct     = s.hh_disponivel ? Math.round(s.hh_programado / s.hh_disponivel * 100) : 0;
+      const realPct = s.hh_disponivel ? Math.round((s.hh_realizado || 0) / s.hh_disponivel * 100) : 0;
+      return `
+      <div class="card mb-3">
+        <div class="card-header">
+          <div>
+            <div class="card-title">${s.id}</div>
+            <div class="text-xs text-muted">${Utils.fmtDate(s.data_inicio)} — ${Utils.fmtDate(s.data_fim)}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="badge ${s.status === 'aberta' ? 'badge-success' : 'badge-gray'}">${s.status}</span>
+            <button class="btn btn-ghost btn-sm btn-icon" onclick="openSemanaModal('${s.id}')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;">
+          <div><div class="text-xs text-muted">HH Disponível</div><div style="font-size:1.3rem;font-weight:600;">${s.hh_disponivel}h</div></div>
+          <div><div class="text-xs text-muted">HH Programado</div><div style="font-size:1.3rem;font-weight:600;color:var(--primary);">${s.hh_programado}h</div></div>
+          <div><div class="text-xs text-muted">HH Realizado</div><div style="font-size:1.3rem;font-weight:600;color:var(--success);">${s.hh_realizado || 0}h</div></div>
+        </div>
+        <div class="hh-bar-wrap">
+          <div class="hh-labels"><span>Programado ${pct}%</span><span>Realizado ${realPct}%</span></div>
+          <div class="hh-bar-track">
+            <div class="hh-bar-prog" style="width:${pct}%"></div>
+            <div class="hh-bar-real" style="width:${realPct}%"></div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  window.openSemanaModal = (id = null) => {
+    const s = id ? semanas.find(x => x.id === id) : null;
+    const { start, end } = Utils.weekRange();
+    Utils.el('sem-id').value          = s?.id || '';
+    Utils.el('sem-inicio').value      = s?.data_inicio || start;
+    Utils.el('sem-fim').value         = s?.data_fim || end;
+    Utils.el('sem-hh-disp').value     = s?.hh_disponivel || '';
+    Utils.el('sem-hh-prog').value     = s?.hh_programado || '';
+    Utils.el('sem-status').value      = s?.status || 'planejamento';
+    Utils.el('sem-modal-title').textContent = s ? 'Editar Semana' : 'Nova Semana';
+    Utils.openModal('sem-modal');
+  };
+
+  Utils.el('btn-nova-semana')?.addEventListener('click', () => window.openSemanaModal());
+  Utils.el('btn-sem-cancel')?.addEventListener('click', () => Utils.closeModal('sem-modal'));
+
+  Utils.el('sem-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = Utils.el('btn-sem-save');
+    btn.disabled = true;
+    try {
+      await API.saveSemana({
+        id:            Utils.el('sem-id').value,
+        data_inicio:   Utils.el('sem-inicio').value,
+        data_fim:      Utils.el('sem-fim').value,
+        hh_disponivel: parseFloat(Utils.el('sem-hh-disp').value) || 0,
+        hh_programado: parseFloat(Utils.el('sem-hh-prog').value) || 0,
+        status:        Utils.el('sem-status').value,
+      });
+      Utils.closeModal('sem-modal');
+      Utils.toast('Semana salva!', 'success');
+      await loadSemanas();
+    } catch (err) {
+      Utils.toast('Erro: ' + err.message, 'error');
+    } finally { btn.disabled = false; }
+  });
+
+  // ═══════════════════════════════════════
+  // ATIVIDADES (admin)
+  // ═══════════════════════════════════════
+  async function loadAtividades() {
+    const [atRes, eqRes, profRes, semRes, subRes] = await Promise.all([
+      API.getAtividades({}),
+      API.getEquipamentos(),
+      API.getProfissionais(),
+      API.getSemanas(),
+      API.getSubSistemas(),
+    ]);
+    atividades    = atRes.atividades    || [];
+    equipamentos  = eqRes.equipamentos  || [];
+    profissionais = profRes.profissionais|| [];
+    semanas       = semRes.semanas       || [];
+    subSistemas   = subRes.subSistemas   || [];
+    renderAtividadesAdmin();
+  }
+
+  function renderAtividadesAdmin() {
+    const tbody = Utils.el('at-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = atividades.slice(0, 50).map(a => {
+      const sub = subSistemas.find(s => s.id === a.sub_sistema_id);
+      return `
+      <tr>
+        <td class="text-xs text-muted" style="font-family:var(--mono);">${a.id}</td>
+        <td>${Utils.tipoBadge(a.tipo)}</td>
+        <td>
+          <div class="fw-500">${a.equipamento_nome || '—'}</div>
+          <div class="text-xs text-muted">${sub?.nome || a.equip_tag || ''}</div>
+        </td>
+        <td>${Utils.truncate(a.descricao, 50)}</td>
+        <td>${a.tecnico_nome || '—'}</td>
+        <td>${Utils.fmtDate(a.data_programada)}</td>
+        <td>${Utils.statusBadge(a.status)}</td>
+        <td>
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="openAtModal('${a.id}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteAt('${a.id}')" style="color:var(--danger);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+          </button>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--gray-400);padding:2rem;">Nenhuma atividade</td></tr>';
+  }
+
+  window.deleteAt = async (id) => {
+    if (!Utils.confirm('Excluir esta atividade?')) return;
+    try {
+      await API.deleteAtividade(id);
+      Utils.toast('Atividade excluída', 'success');
+      await loadAtividades();
+    } catch (e) { Utils.toast('Erro: ' + e.message, 'error'); }
+  };
+
+  Utils.el('btn-nova-at')?.addEventListener('click', () => window.openAtModal());
+  Utils.el('btn-at-cancel')?.addEventListener('click', () => Utils.closeModal('at-modal'));
+  Utils.el('btn-at-save')?.addEventListener('click', async () => {
+    const eq   = Utils.el('at-eq').value;
+    const desc = Utils.el('at-desc').value.trim();
+    if (!eq || !desc) { Utils.toast('Equipamento e descrição são obrigatórios', 'error'); return; }
+    const btn = Utils.el('btn-at-save');
+    btn.disabled = true;
+    try {
+      const passos = [...document.querySelectorAll('.passo-input')].map(i => i.value.trim()).filter(Boolean);
+      await API.saveAtividade({
+        id:              Utils.el('at-id').value,
+        tipo:            Utils.el('at-tipo').value,
+        prioridade:      Utils.el('at-prio').value,
+        semanaId:        Utils.el('at-semana').value,
+        equipamentoId:   eq,
+        subSistemaId:    Utils.el('at-sub-sistema-id')?.value || '',
+        descricao:       desc,
+        tecnicoId:       Utils.el('at-tecnico').value,
+        dataProgramada:  Utils.el('at-data').value,
+        hhEstimado:      parseFloat(Utils.el('at-hh').value) || 1,
+        passos,
+      });
+      Utils.closeModal('at-modal');
+      Utils.toast('Atividade salva!', 'success');
+      await loadAtividades();
+    } catch (err) { Utils.toast('Erro: ' + err.message, 'error'); }
+    finally { btn.disabled = false; }
+  });
+
+  // ═══════════════════════════════════════
+  // IMPORTAR EXCEL
+  // ═══════════════════════════════════════
   // ═══════════════════════════════════════
   // MOTIVOS
   // ═══════════════════════════════════════
