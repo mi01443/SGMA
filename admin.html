@@ -65,23 +65,25 @@
 
       <!-- ── PROFISSIONAIS ── -->
       <div class="tab-content" data-tab="profissionais">
-        <div class="section-toolbar" style="flex-wrap:wrap;gap:10px;">
-          <h2>Profissionais</h2>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:auto;">
-            <input type="text" id="filtro-prof-matricula" class="form-control" style="width:130px;"
-              placeholder="🔍 Matrícula" oninput="filtrarProfissionais()">
-            <select id="filtro-prof-funcao" class="form-control" style="width:220px;" onchange="filtrarProfissionais()">
-              <option value="">Todas as funções</option>
-              <option>Técnico Manutenção Eletroeletrônico I</option>
-              <option>Técnico Manutenção Eletroeletrônico II</option>
-              <option>Técnico Manutenção Eletroeletrônico III</option>
-              <option>Técnico Especialista</option>
-              <option>Supervisor</option>
-              <option>Estagiário</option>
-            </select>
-            <button class="btn btn-ghost btn-sm" onclick="filtrarProfissionais(true)" title="Limpar filtros">✕ Limpar</button>
-            <button class="btn btn-primary btn-sm" id="btn-nova-prof">+ Novo profissional</button>
-          </div>
+        <!-- Toolbar -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;flex-wrap:wrap;gap:8px;">
+          <h2 style="margin:0;">Profissionais</h2>
+          <button class="btn btn-primary btn-sm" id="btn-nova-prof">+ Novo</button>
+        </div>
+        <!-- Filtros em linha separada -->
+        <div class="prof-filter-grid" style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:1rem;">
+          <input type="text" id="filtro-prof-matricula" class="form-control"
+            placeholder="🔍 Matrícula / Nome" oninput="filtrarProfissionais()">
+          <select id="filtro-prof-funcao" class="form-control" onchange="filtrarProfissionais()">
+            <option value="">Todas as funções</option>
+            <option>Técnico Manutenção Eletroeletrônico I</option>
+            <option>Técnico Manutenção Eletroeletrônico II</option>
+            <option>Técnico Manutenção Eletroeletrônico III</option>
+            <option>Técnico Especialista</option>
+            <option>Supervisor</option>
+            <option>Estagiário</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="filtrarProfissionais(true)" title="Limpar">✕</button>
         </div>
         <div style="display:flex;gap:16px;align-items:flex-start;">
           <!-- Lista -->
