@@ -65,9 +65,23 @@
 
       <!-- ── PROFISSIONAIS ── -->
       <div class="tab-content" data-tab="profissionais">
-        <div class="section-toolbar">
+        <div class="section-toolbar" style="flex-wrap:wrap;gap:10px;">
           <h2>Profissionais</h2>
-          <button class="btn btn-primary btn-sm" id="btn-nova-prof">+ Novo profissional</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:auto;">
+            <input type="text" id="filtro-prof-matricula" class="form-control" style="width:130px;"
+              placeholder="🔍 Matrícula" oninput="filtrarProfissionais()">
+            <select id="filtro-prof-funcao" class="form-control" style="width:220px;" onchange="filtrarProfissionais()">
+              <option value="">Todas as funções</option>
+              <option>Técnico Manutenção Eletroeletrônico I</option>
+              <option>Técnico Manutenção Eletroeletrônico II</option>
+              <option>Técnico Manutenção Eletroeletrônico III</option>
+              <option>Técnico Especialista</option>
+              <option>Supervisor</option>
+              <option>Estagiário</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="filtrarProfissionais(true)" title="Limpar filtros">✕ Limpar</button>
+            <button class="btn btn-primary btn-sm" id="btn-nova-prof">+ Novo profissional</button>
+          </div>
         </div>
         <div style="display:flex;gap:16px;align-items:flex-start;">
           <!-- Lista -->
