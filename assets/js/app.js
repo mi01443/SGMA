@@ -738,9 +738,12 @@
   setInterval(async () => {
     // Não atualiza se o painel de detalhe estiver aberto
     if (currentAtiv) return;
-    await loadAll(true);
-    if (_activeView === 'dashboard')  renderDashboard();
-    if (_activeView === 'atividades') renderAtividades();
+    try {
+      await loadAll(true);
+      if (_activeView === 'dashboard')  renderDashboard();
+      if (_activeView === 'atividades') renderAtividades();
+      // historico e nova não precisam de refresh automático
+    } catch {}
   }, 5000);
 
 })();
