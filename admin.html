@@ -330,16 +330,16 @@
       <input type="hidden" id="eq-id">
       <div class="form-group">
         <label class="form-label">Tag do Equipamento <span>*</span></label>
-        <input type="text" id="eq-tag" class="form-control" required placeholder="Ex: CLP-001, INV-002"
+        <input type="text" id="eq-tag" class="form-control" required placeholder="Ex: CLP-001"
           oninput="this.value=this.value.toUpperCase()">
-        <div class="form-hint">A tag será usada como nome da pasta no Google Drive.</div>
+        <div class="form-hint">Identificador único. A pasta no Drive será nomeada com esta tag.</div>
       </div>
       <div class="form-group">
-        <label class="form-label">Sub Sistema</label>
-        <input type="text" id="eq-sub-sistema" class="form-control" placeholder="Ex: Sistema de Correia, Linha de Pintura">
+        <label class="form-label">Sub Sistema <span>*</span></label>
+        <input type="text" id="eq-sub-sistema" class="form-control" required placeholder="Ex: Sistema de Correia, Linha de Pintura">
       </div>
       <div class="alert alert-info" style="font-size:.8rem;">
-        💡 Ao salvar, uma pasta com o nome da Tag será criada no Google Drive para as fotos.
+        &#128161; Ao salvar, uma pasta com o nome da Tag será criada no Google Drive para as fotos.
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="btn-eq-cancel">Cancelar</button>
