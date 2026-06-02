@@ -9,7 +9,7 @@ const API = (() => {
 
   // ── CONFIGURAÇÃO ──────────────────────────────────────────────
   const CONFIG = {
-    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbw9tnkfCTpXYlo2Swaoo19O8DrJSQeiS8j0ehpLWkLRfYhAKMAhfmMmoGg56KtSuz8mAw/exec',
+    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbx1aObh4-AU9PtPxiZHGSiAtISvhvOcXurJvK5eisqAimi2zOX086qz97AQgk7_4OxeeQ/exec',
   };
   // ──────────────────────────────────────────────────────────────
 
