@@ -582,7 +582,10 @@
           if (idx >= 0) atividades[idx].status = selectedStatus;
           Utils.toast('Execução registrada!', 'success');
           closeDetailPanel();
-          renderDashboard();
+          // Recarregar dados imediatamente para refletir o novo status
+          await loadAll(true);
+          if (_activeView === 'dashboard')  renderDashboard();
+          if (_activeView === 'atividades') renderAtividades();
         } catch (e) {
           console.error('Erro saveExecucao:', e);
           Utils.toast('Erro: ' + (e.message || 'Verifique o console'), 'error');
@@ -610,6 +613,10 @@
             hhReal,
           });
           Utils.toast('Progresso salvo!', 'success');
+          // Recarregar silenciosamente para atualizar obs_parcial e hh_parcial
+          await loadAll(true);
+          if (_activeView === 'dashboard')  renderDashboard();
+          if (_activeView === 'atividades') renderAtividades();
         } catch (e) {
           Utils.toast('Erro ao salvar progresso: ' + (e.message || ''), 'error');
         } finally {
