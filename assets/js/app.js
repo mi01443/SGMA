@@ -237,14 +237,21 @@
       <div class="card">
         <div class="card-header">
           <span class="card-title">${filtroTecnico ? 'Atividades do técnico' : 'Todas as atividades'}</span>
-          <button class="btn btn-primary btn-sm" onclick="setView('atividades')">Ver detalhes</button>
+          <button class="btn btn-primary btn-sm" onclick="setView('atividades');filtrarPorTecnico()">Ver detalhes</button>
         </div>
         ${renderAtividadesMini(atFiltradas.slice(0, 8))}
       </div>
     `;
 
     // Listener do filtro de técnico
-    Utils.el('filtro-tecnico-dash')?.addEventListener('change', (e) => {
+    window.filtrarPorTecnico = () => {
+    // Aplica o filtroTecnico atual na view de atividades
+    activeFilter = 'todas';
+    document.querySelectorAll('.filter-chip[data-filter]').forEach(c => c.classList.remove('active'));
+    document.querySelector('.filter-chip[data-filter="todas"]')?.classList.add('active');
+  };
+
+  Utils.el('filtro-tecnico-dash')?.addEventListener('change', (e) => {
       filtroTecnico = e.target.value;
       renderDashboardSupervisor();
     });
@@ -347,7 +354,7 @@
         <div class="activity-desc">${Utils.truncate(a.descricao, 70)}</div>
         <div class="activity-meta">
           <span>👤 ${a.tecnico_nome || '—'}</span>
-          <span>⏱ ${Utils.fmtHH(a.hh_estimado)} est.</span>
+          <span>⏱ ${Utils.fmtHH(a.hh_estimado)}</span>
           ${Utils.tipoBadge(a.tipo)}
         </div>
         ${passos.length ? `
@@ -381,8 +388,6 @@
     if (!currentAtiv) return;
     fotosBefore  = [];
     fotosAfter   = [];
-    timerSeconds = 0;
-    clearInterval(timerInterval);
     document.querySelector('.detail-panel')?.classList.add('open');
     renderDetailPanel();
   }
@@ -399,51 +404,35 @@
     if (!currentAtiv) return;
     const a = currentAtiv;
 
-    // Atualizar cabeçalho do painel
-    Utils.setHTML('detail-equip', `<span style="font-family:var(--mono);font-size:.85rem;color:var(--primary);font-weight:700;">OM ${a.om || a.id}</span>`);
-    Utils.setHTML('detail-desc',  a.descricao || '—');
+    // Atualizar cabeçalho OM
+    Utils.setHTML('detail-om',   a.om || a.id || '—');
+    Utils.setHTML('detail-desc', a.descricao || '—');
 
     const motOpts = motivos.map(m => `<option value="${m.id}">${m.descricao}</option>`).join('');
     let selectedStatus = a.status !== 'pendente' ? a.status : null;
 
     // Helper linha somente leitura
-    const row = (label, val) =>
-      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--gray-100);">' +
-      '<span style="color:var(--gray-500);font-size:.775rem;white-space:nowrap;">' + label + '</span>' +
-      '<span style="font-weight:500;text-align:right;">' + val + '</span>' +
+    const irow = (label, val) =>
+      '<div class="info-row">' +
+      '<span class="info-label">' + label + '</span>' +
+      '<span class="info-value">' + val + '</span>' +
       '</div>';
 
     Utils.setHTML('detail-info', `
-      <!-- ── CABEÇALHO OM + DESCRIÇÃO ── -->
-      <div style="background:var(--primary);border-radius:var(--radius-lg);padding:16px;margin-bottom:16px;">
-        <div style="font-size:.7rem;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Ordem de Manutenção</div>
-        <div style="font-family:var(--mono);font-size:1.6rem;font-weight:700;color:#fff;letter-spacing:3px;margin-bottom:6px;">${a.om || a.id}</div>
-        <div style="font-size:.875rem;color:rgba(255,255,255,.9);line-height:1.4;">${a.descricao || '—'}</div>
-      </div>
-
       <!-- ── DADOS DA ATIVIDADE (somente leitura) ── -->
       <div class="detail-section">
         <div class="detail-section-title">Dados da Atividade</div>
-        <div style="display:grid;gap:6px;font-size:.825rem;">
-          ${row('Equipamento',  a.equipamento_nome || '—')}
-          ${row('Sub Sistema',  (() => {
-            if (a.sub_sistema_nome) return a.sub_sistema_nome;
-            if (a.sub_sistema_id) {
-              const s = subSistemas.find(x => String(x.id).trim() === String(a.sub_sistema_id).trim());
-              return s ? s.nome : a.sub_sistema_id;
-            }
-            return '—';
-          })())}
-          ${row('Tipo',         Utils.tipoBadge(a.tipo))}
-          ${row('Prioridade',   Utils.prioridadeBadge(a.prioridade || 'Normal'))}
-          ${row('Data',         Utils.fmtDate(a.data_programada))}
-          ${row('HH Estimado',  Utils.fmtHH(a.hh_estimado))}
-          ${row('Técnico',      a.tecnico_nome || '—')}
-          ${row('Semana',       a.semana_id || '—')}
-          ${row('Status atual', Utils.statusBadge(a.status))}
-          ${a.hh_parcial ? row('HH registrado', Utils.fmtHH(a.hh_parcial) + ' <span class="text-xs text-muted">(parcial)</span>') : ''}
-          ${a.obs_parcial ? row('Última observação', '<span class="text-xs">' + Utils.truncate(a.obs_parcial, 80) + '</span>') : ''}
-          ${a.dt_progresso ? row('Atualizado em', '<span class="text-xs">' + Utils.fmtDateTime(a.dt_progresso) + '</span>') : ''}
+        <div style="display:grid;gap:0;">
+          ${irow('Equipamento',  a.equipamento_nome || '—')}
+          ${irow('Sub Sistema',  a.sub_sistema_nome || (a.sub_sistema_id ? (subSistemas.find(x => String(x.id).trim() === String(a.sub_sistema_id).trim()) || {}).nome || a.sub_sistema_id : '—'))}
+          ${irow('Tipo',         Utils.tipoBadge(a.tipo))}
+          ${irow('Prioridade',   Utils.prioridadeBadge(a.prioridade || 'Normal'))}
+          ${irow('Data prog.',   Utils.fmtDate(a.data_programada))}
+          ${irow('HH Estimado',  Utils.fmtHH(a.hh_estimado))}
+          ${irow('Técnico',      a.tecnico_nome || '—')}
+          ${irow('Status',       Utils.statusBadge(a.status))}
+          ${a.hh_parcial ? irow('HH parcial', Utils.fmtHH(a.hh_parcial)) : ''}
+          ${a.obs_parcial ? irow('Últ. obs.', '<span class="text-xs">' + Utils.truncate(a.obs_parcial, 60) + '</span>') : ''}
         </div>
       </div>
 
@@ -464,17 +453,10 @@
         <!-- Status de execução -->
         <div class="form-group">
           <label class="form-label">Resultado <span>*</span></label>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;" id="status-btns">
-            <button class="btn btn-sm ${selectedStatus==='concluida'?'btn-success':'btn-secondary'}" id="btn-status-ok" data-status="concluida">
-              ✅ Executada
-            </button>
-            <button class="btn btn-sm ${selectedStatus==='parcial'?'btn-warning':'btn-secondary'}" id="btn-status-parc" data-status="parcial"
-              style="${selectedStatus==='parcial'?'background:#d97706;color:#fff;border-color:#d97706;':''}">
-              ⚠️ Parcial
-            </button>
-            <button class="btn btn-sm ${selectedStatus==='nao_realizada'?'btn-danger':'btn-secondary'}" id="btn-status-nok" data-status="nao_realizada">
-              ❌ Não exec.
-            </button>
+          <div class="status-btn-grid" id="status-btns">
+            <div class="status-btn ${selectedStatus==='concluida'?'active-ok':''}" id="btn-status-ok">✅ Executada</div>
+            <div class="status-btn ${selectedStatus==='parcial'?'active-parc':''}" id="btn-status-parc">⚠️ Parcial</div>
+            <div class="status-btn ${selectedStatus==='nao_realizada'?'active-nok':''}" id="btn-status-nok">❌ Não exec.</div>
           </div>
         </div>
 
@@ -532,39 +514,24 @@
 
     // ── Handlers de status ──
     function updateStatusUI() {
-      // Resetar todos os botões completamente
-      const map = {
-        ok:   { el: Utils.el('btn-status-ok'),   status: 'concluida',     cls: 'btn btn-sm btn-success',   style: '' },
-        parc: { el: Utils.el('btn-status-parc'), status: 'parcial',       cls: 'btn btn-sm',               style: 'background:#d97706;color:#fff;border-color:#d97706;' },
-        nok:  { el: Utils.el('btn-status-nok'),  status: 'nao_realizada', cls: 'btn btn-sm btn-danger',    style: '' },
+      const btns = {
+        ok:   { el: Utils.el('btn-status-ok'),   cls: 'active-ok',   status: 'concluida'     },
+        parc: { el: Utils.el('btn-status-parc'), cls: 'active-parc', status: 'parcial'        },
+        nok:  { el: Utils.el('btn-status-nok'),  cls: 'active-nok',  status: 'nao_realizada'  },
       };
-      Object.values(map).forEach(({ el }) => {
+      Object.values(btns).forEach(({ el, cls, status }) => {
         if (!el) return;
-        el.className = 'btn btn-sm btn-secondary';
-        el.style.cssText = '';
-      });
-      // Destacar o selecionado
-      Object.values(map).forEach(({ el, status, cls, style }) => {
-        if (!el || selectedStatus !== status) return;
-        el.className = cls;
-        if (style) el.style.cssText = style;
+        el.className = 'status-btn' + (selectedStatus === status ? ' ' + cls : '');
       });
       const showMotivo = selectedStatus === 'nao_realizada' || selectedStatus === 'parcial';
       Utils.el('motivo-group')?.classList.toggle('hidden', !showMotivo);
     }
 
-    // Clique toggle: seleciona ou desseleciona
-    Utils.el('btn-status-ok')?.addEventListener('click', () => {
-      selectedStatus = selectedStatus === 'concluida' ? null : 'concluida';
-      updateStatusUI();
-    });
-    Utils.el('btn-status-parc')?.addEventListener('click', () => {
-      selectedStatus = selectedStatus === 'parcial' ? null : 'parcial';
-      updateStatusUI();
-    });
-    Utils.el('btn-status-nok')?.addEventListener('click', () => {
-      selectedStatus = selectedStatus === 'nao_realizada' ? null : 'nao_realizada';
-      updateStatusUI();
+    Object.entries({ ok:'concluida', parc:'parcial', nok:'nao_realizada' }).forEach(([k, st]) => {
+      Utils.el('btn-status-' + k)?.addEventListener('click', () => {
+        selectedStatus = selectedStatus === st ? null : st;
+        updateStatusUI();
+      });
     });
 
     // ── Preencher campos com progresso salvo ──
@@ -829,30 +796,105 @@
   }
 
   // ── Histórico ──
+  let _allExecs = [];
+
   async function renderHistorico() {
     const container = Utils.el('historico-list');
     if (!container) return;
-    container.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">Carregando...</div>';
-    try {
-      const res   = await API.getExecucoes(isSupervisor ? {} : { tecnicoId: session.id });
-      const execs = res.execucoes || [];
-      if (!execs.length) { container.innerHTML = '<div class="empty-state"><p>Nenhuma execução registrada.</p></div>'; return; }
-      container.innerHTML = execs.map(ex => `
-        <div class="activity-card">
-          <div class="activity-body">
-            <div class="activity-equip">${ex.equipamento_nome || '—'}</div>
-            <div class="activity-desc">${ex.atividade_desc || '—'}</div>
-            <div class="activity-meta">
-              <span>📅 ${Utils.fmtDateTime(ex.dt_fim)}</span>
-              <span>⏱ ${Utils.fmtHH(ex.hh_real)}</span>
-              <span>👤 ${ex.tecnico_nome}</span>
-            </div>
+
+    // Build filters UI
+    const eqOpts  = equipamentos.map(e => `<option value="${e.id}">${e.nome}</option>`).join('');
+    const tecOpts = isSupervisor ? profissionais.map(p => `<option value="${p.id}">${p.nome}</option>`).join('') : '';
+
+    Utils.el('historico-wrap').innerHTML = `
+      <!-- Filtros -->
+      <div class="card mb-3" style="padding:.875rem 1rem;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end;">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Data início</label>
+            <input type="date" class="form-control" id="hist-dt-ini">
           </div>
-          <div>${Utils.statusBadge(ex.status)}</div>
-        </div>`).join('');
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Data fim</label>
+            <input type="date" class="form-control" id="hist-dt-fim">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">Equipamento</label>
+            <select class="form-control" id="hist-eq"><option value="">Todos</option>${eqOpts}</select>
+          </div>
+          ${isSupervisor ? `<div class="form-group" style="margin:0;"><label class="form-label">Técnico</label><select class="form-control" id="hist-tec"><option value="">Todos</option>${tecOpts}</select></div>` : ''}
+          <div style="display:flex;gap:6px;padding-top:1.2rem;">
+            <button class="btn btn-primary btn-sm flex-1" id="btn-hist-filtrar">Filtrar</button>
+            <button class="btn btn-ghost btn-sm" id="btn-hist-limpar">✕</button>
+          </div>
+        </div>
+      </div>
+      <div id="historico-list"></div>`;
+
+    Utils.el('btn-hist-filtrar')?.addEventListener('click', () => aplicarFiltroHistorico());
+    Utils.el('btn-hist-limpar')?.addEventListener('click', () => {
+      ['hist-dt-ini','hist-dt-fim','hist-eq','hist-tec'].forEach(id => {
+        const el = Utils.el(id); if (el) el.value = '';
+      });
+      aplicarFiltroHistorico();
+    });
+
+    // Load data
+    const c2 = Utils.el('historico-list');
+    if (!c2) return;
+    c2.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">Carregando...</div>';
+    try {
+      const res = await API.getExecucoes(isSupervisor ? {} : { tecnicoId: session.id });
+      _allExecs = res.execucoes || [];
+      aplicarFiltroHistorico();
     } catch (e) {
-      container.innerHTML = `<div class="alert alert-danger">Erro: ${e.message}</div>`;
+      c2.innerHTML = `<div class="alert alert-danger">Erro: ${e.message}</div>`;
     }
+  }
+
+  function aplicarFiltroHistorico() {
+    const c = Utils.el('historico-list');
+    if (!c) return;
+
+    const dtIni = Utils.el('hist-dt-ini')?.value || '';
+    const dtFim = Utils.el('hist-dt-fim')?.value || '';
+    const eqId  = Utils.el('hist-eq')?.value || '';
+    const tecId = Utils.el('hist-tec')?.value || '';
+
+    const filtrados = _allExecs.filter(ex => {
+      const data = (ex.dt_fim || '').slice(0,10);
+      if (dtIni && data < dtIni) return false;
+      if (dtFim && data > dtFim) return false;
+      if (eqId  && ex.equipamento_id !== eqId) return false;
+      if (tecId && ex.tecnico_id !== tecId) return false;
+      return true;
+    });
+
+    if (!filtrados.length) {
+      c.innerHTML = `<div class="empty-state">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <h3>Nenhum resultado</h3><p>Tente ajustar os filtros</p></div>`;
+      return;
+    }
+
+    c.innerHTML = filtrados.map(ex => `
+      <div class="activity-card">
+        <div class="activity-type-dot type-programada"></div>
+        <div class="activity-body">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+            <div class="activity-equip">${ex.equipamento_nome || '—'}</div>
+            ${ex.atividade_id ? `<span class="om-tag">OM ${ex.atividade_id}</span>` : ''}
+          </div>
+          <div class="activity-desc">${ex.atividade_desc || '—'}</div>
+          <div class="activity-meta">
+            <span>📅 ${Utils.fmtDateTime(ex.dt_fim)}</span>
+            <span>⏱ ${Utils.fmtHH(ex.hh_real)}</span>
+            <span>👤 ${ex.tecnico_nome || '—'}</span>
+            ${ex.observacao ? `<span title="${ex.observacao}">💬</span>` : ''}
+          </div>
+        </div>
+        <div>${Utils.statusBadge(ex.status)}</div>
+      </div>`).join('');
   }
 
   // ── Helpers ──
