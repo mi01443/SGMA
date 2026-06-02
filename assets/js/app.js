@@ -431,6 +431,9 @@
           ${row('Técnico',      a.tecnico_nome || '—')}
           ${row('Semana',       a.semana_id || '—')}
           ${row('Status atual', Utils.statusBadge(a.status))}
+          ${a.hh_parcial ? row('HH registrado', Utils.fmtHH(a.hh_parcial) + ' <span class="text-xs text-muted">(parcial)</span>') : ''}
+          ${a.obs_parcial ? row('Última observação', '<span class="text-xs">' + Utils.truncate(a.obs_parcial, 80) + '</span>') : ''}
+          ${a.dt_progresso ? row('Atualizado em', '<span class="text-xs">' + Utils.fmtDateTime(a.dt_progresso) + '</span>') : ''}
         </div>
       </div>
 
@@ -535,6 +538,16 @@
     Utils.el('btn-status-parc')?.addEventListener('click', () => { selectedStatus = 'parcial';        updateStatusUI(); });
     Utils.el('btn-status-nok')?.addEventListener('click',  () => { selectedStatus = 'nao_realizada'; updateStatusUI(); });
 
+    // ── Preencher campos com progresso salvo ──
+    if (a.obs_parcial) {
+      const obsEl = Utils.el('exec-obs');
+      if (obsEl) obsEl.value = a.obs_parcial;
+    }
+    if (a.hh_parcial) {
+      const hhEl = Utils.el('hh-real-input');
+      if (hhEl) hhEl.value = a.hh_parcial;
+    }
+
     // ── Fotos ──
     setupPhotoUpload('file-before', 'photos-before-grid', fotosBefore);
     setupPhotoUpload('file-after',  'photos-after-grid',  fotosAfter);
@@ -577,6 +590,31 @@
           Utils.hideLoading();
           btnSave.disabled = false;
           btnSave.innerHTML = '💾 Registrar';
+        }
+      };
+    }
+
+    // ── Salvar Progresso (sem finalizar) ──
+    const btnProgresso = Utils.el('btn-save-progresso');
+    if (btnProgresso) {
+      btnProgresso.onclick = async () => {
+        btnProgresso.disabled = true;
+        btnProgresso.innerHTML = '<span class="spinner" style="width:13px;height:13px;border-width:2px;"></span>';
+        try {
+          // Salva observação atual sem mudar status
+          const obs = Utils.el('exec-obs')?.value || '';
+          const hhReal = parseFloat(Utils.el('hh-real-input')?.value) || 0;
+          await API.saveProgresso({
+            atividadeId: String(currentAtiv.id),
+            obs,
+            hhReal,
+          });
+          Utils.toast('Progresso salvo!', 'success');
+        } catch (e) {
+          Utils.toast('Erro ao salvar progresso: ' + (e.message || ''), 'error');
+        } finally {
+          btnProgresso.disabled = false;
+          btnProgresso.innerHTML = '💾 Salvar Progresso';
         }
       };
     }
