@@ -86,8 +86,8 @@
 
     <!-- HISTÓRICO -->
     <div class="page-content view-section hidden" data-section="historico">
-      <div class="page-header"><h1>Histórico de Execuções</h1></div>
-      <div id="historico-list"></div>
+      <div style="margin-bottom:1rem;"><h1>Histórico de Execuções</h1></div>
+      <div id="historico-wrap"></div>
     </div>
 
     <!-- NOVA -->
@@ -99,26 +99,29 @@
 
   <!-- Detail panel -->
   <div class="detail-panel">
-    <div class="detail-header">
-      <div>
-        <div class="fw-600" id="detail-equip">—</div>
-        <div class="text-sm text-muted" id="detail-desc">—</div>
+    <!-- OM header -->
+    <div class="om-header" id="om-header">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+        <div style="flex:1;min-width:0;">
+          <div class="om-header-label">Ordem de Manutenção</div>
+          <div class="om-header-number" id="detail-om">—</div>
+          <div class="om-header-desc" id="detail-desc">—</div>
+        </div>
+        <button class="btn btn-ghost btn-icon" id="detail-close"
+          style="color:rgba(255,255,255,.6);flex-shrink:0;margin-top:-4px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
-      <button class="btn btn-ghost btn-sm btn-icon" id="detail-close">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
     </div>
-    <div class="detail-body">
+    <div class="detail-body" id="detail-body">
       <div id="detail-info"></div>
-      <div id="detail-checklist" class="detail-section"></div>
-      <div id="detail-exec-form"></div>
     </div>
-    <div class="detail-footer" style="flex-direction:column;gap:8px;">
-      <div style="display:flex;gap:8px;width:100%;">
-        <button class="btn btn-secondary flex-1" onclick="document.querySelector('.detail-panel').classList.remove('open')">Cancelar</button>
-        <button class="btn btn-ghost flex-1" id="btn-save-progresso" style="border-color:var(--gray-300);">💾 Salvar Progresso</button>
+    <div class="detail-footer">
+      <div class="detail-footer-row">
+        <button class="btn btn-secondary flex-1" onclick="document.querySelector('.detail-panel').classList.remove('open')">Fechar</button>
+        <button class="btn btn-ghost flex-1" id="btn-save-progresso">💾 Salvar progresso</button>
       </div>
-      <button class="btn btn-primary w-full" id="btn-save-exec">✅ Finalizar e Registrar</button>
+      <button class="btn btn-primary w-full" id="btn-save-exec">✅ Finalizar e registrar</button>
     </div>
   </div>
 </div>
