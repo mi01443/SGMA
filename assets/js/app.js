@@ -14,6 +14,7 @@
   let equipamentos  = [];
   let motivos       = [];
   let profissionais = [];
+  let subSistemas   = [];
   let semanaAtual   = null;
   let currentAtiv   = null;
   let timerInterval = null;
@@ -50,13 +51,15 @@
         API.getEquipamentos(),
         API.getMotivos(),
         API.getSemanas(),
+        API.getSubSistemas(),
       ];
       if (isSupervisor) promises.push(API.getProfissionais());
 
-      const [atRes, eqRes, motRes, semRes, profRes] = await Promise.all(promises);
-      atividades    = atRes.atividades || [];
-      equipamentos  = eqRes.equipamentos || [];
-      motivos       = motRes.motivos || [];
+      const [atRes, eqRes, motRes, semRes, subRes, profRes] = await Promise.all(promises);
+      atividades    = atRes.atividades    || [];
+      equipamentos  = eqRes.equipamentos  || [];
+      motivos       = motRes.motivos      || [];
+      subSistemas   = subRes.subSistemas  || [];
       profissionais = profRes?.profissionais || [];
 
       const semanas = semRes.semanas || [];
@@ -423,7 +426,14 @@
         <div class="detail-section-title">Dados da Atividade</div>
         <div style="display:grid;gap:6px;font-size:.825rem;">
           ${row('Equipamento',  a.equipamento_nome || '—')}
-          ${row('Sub Sistema',  a.sub_sistema_nome || '—')}
+          ${row('Sub Sistema',  (() => {
+            if (a.sub_sistema_nome) return a.sub_sistema_nome;
+            if (a.sub_sistema_id) {
+              const s = subSistemas.find(x => String(x.id).trim() === String(a.sub_sistema_id).trim());
+              return s ? s.nome : a.sub_sistema_id;
+            }
+            return '—';
+          })())}
           ${row('Tipo',         Utils.tipoBadge(a.tipo))}
           ${row('Prioridade',   Utils.prioridadeBadge(a.prioridade || 'Normal'))}
           ${row('Data',         Utils.fmtDate(a.data_programada))}
@@ -522,21 +532,40 @@
 
     // ── Handlers de status ──
     function updateStatusUI() {
-      ['ok','parc','nok'].forEach(k => {
-        const btn = Utils.el('btn-status-' + k);
-        if (!btn) return;
-        btn.className = 'btn btn-sm btn-secondary';
+      // Resetar todos os botões completamente
+      const map = {
+        ok:   { el: Utils.el('btn-status-ok'),   status: 'concluida',     cls: 'btn btn-sm btn-success',   style: '' },
+        parc: { el: Utils.el('btn-status-parc'), status: 'parcial',       cls: 'btn btn-sm',               style: 'background:#d97706;color:#fff;border-color:#d97706;' },
+        nok:  { el: Utils.el('btn-status-nok'),  status: 'nao_realizada', cls: 'btn btn-sm btn-danger',    style: '' },
+      };
+      Object.values(map).forEach(({ el }) => {
+        if (!el) return;
+        el.className = 'btn btn-sm btn-secondary';
+        el.style.cssText = '';
       });
-      if (selectedStatus === 'concluida')     { Utils.el('btn-status-ok').className   = 'btn btn-sm btn-success'; }
-      if (selectedStatus === 'parcial')       { Utils.el('btn-status-parc').style.cssText = 'background:#d97706;color:#fff;border-color:#d97706;'; Utils.el('btn-status-parc').className = 'btn btn-sm'; }
-      if (selectedStatus === 'nao_realizada') { Utils.el('btn-status-nok').className  = 'btn btn-sm btn-danger'; }
+      // Destacar o selecionado
+      Object.values(map).forEach(({ el, status, cls, style }) => {
+        if (!el || selectedStatus !== status) return;
+        el.className = cls;
+        if (style) el.style.cssText = style;
+      });
       const showMotivo = selectedStatus === 'nao_realizada' || selectedStatus === 'parcial';
       Utils.el('motivo-group')?.classList.toggle('hidden', !showMotivo);
     }
 
-    Utils.el('btn-status-ok')?.addEventListener('click',   () => { selectedStatus = 'concluida';     updateStatusUI(); });
-    Utils.el('btn-status-parc')?.addEventListener('click', () => { selectedStatus = 'parcial';        updateStatusUI(); });
-    Utils.el('btn-status-nok')?.addEventListener('click',  () => { selectedStatus = 'nao_realizada'; updateStatusUI(); });
+    // Clique toggle: seleciona ou desseleciona
+    Utils.el('btn-status-ok')?.addEventListener('click', () => {
+      selectedStatus = selectedStatus === 'concluida' ? null : 'concluida';
+      updateStatusUI();
+    });
+    Utils.el('btn-status-parc')?.addEventListener('click', () => {
+      selectedStatus = selectedStatus === 'parcial' ? null : 'parcial';
+      updateStatusUI();
+    });
+    Utils.el('btn-status-nok')?.addEventListener('click', () => {
+      selectedStatus = selectedStatus === 'nao_realizada' ? null : 'nao_realizada';
+      updateStatusUI();
+    });
 
     // ── Preencher campos com progresso salvo ──
     if (a.obs_parcial) {
