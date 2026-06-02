@@ -9,7 +9,7 @@ const API = (() => {
 
   // ── CONFIGURAÇÃO ──────────────────────────────────────────────
   const CONFIG = {
-    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycby7K1E6AWIYsA6iGqgjKQWU_6puUzwh5SFGFxuA4wYV2tqDNk45KfPL7mTCv6BS-72n/exec',
+    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxxl2wyWrl8OkvnJjE6N4k6tbcV2Q6B1vAhbF5Tiv1auevM_tKyOXYMe1O5Lw4Wnra0OQ/exec',
   };
   // ──────────────────────────────────────────────────────────────
 
@@ -55,6 +55,10 @@ const API = (() => {
     // ── Passos / checklist ──
     updatePasso: (atividadeId, passoId, concluido) =>
       request('updatePasso', { atividadeId, passoId, concluido }),
+
+    // ── Progresso ──
+    saveProgresso: (dados) =>
+      request('saveProgresso', dados),
 
     // ── Execuções ──
     saveExecucao: (dados) =>
