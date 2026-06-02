@@ -864,13 +864,32 @@
   window.setView = function(v) { _activeView = v; _origSetView(v); };
 
   setInterval(async () => {
-    // Não atualiza se o painel de detalhe estiver aberto
-    if (currentAtiv) return;
     try {
       await loadAll(true);
+
+      // Atualizar listas sempre
       if (_activeView === 'dashboard')  renderDashboard();
       if (_activeView === 'atividades') renderAtividades();
-      // historico e nova não precisam de refresh automático
+
+      // Se painel de detalhe aberto, recarregar os dados da atividade atual
+      if (currentAtiv) {
+        const updated = atividades.find(a => String(a.id) === String(currentAtiv.id));
+        if (updated) {
+          const panel = document.querySelector('.detail-panel');
+          const isOpen = panel?.classList.contains('open');
+          if (isOpen) {
+            // Atualizar apenas o checklist e os campos de progresso sem resetar o formulário
+            const prevObs = Utils.el('exec-obs')?.value;
+            const prevHH  = Utils.el('hh-real-input')?.value;
+            currentAtiv = updated;
+            // Re-renderizar só o checklist (dados podem ter mudado por outro dispositivo)
+            renderChecklist();
+            // Restaurar o que o técnico estava digitando
+            if (prevObs && Utils.el('exec-obs')) Utils.el('exec-obs').value = prevObs;
+            if (prevHH  && Utils.el('hh-real-input')) Utils.el('hh-real-input').value = prevHH;
+          }
+        }
+      }
     } catch {}
   }, 5000);
 
