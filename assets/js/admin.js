@@ -353,14 +353,17 @@ Essa ação não pode ser desfeita.`)) return;
     const eqSubMap = {};
     equipamentos.forEach(e => { eqSubMap[e.id] = e.sub_sistema || ''; });
 
+    // Se editando, o campo OM não pode ser alterado (é a chave)
+    const omReadonly = a ? 'readonly style="background:var(--gray-50);font-family:var(--mono);font-size:1rem;font-weight:700;letter-spacing:1px;color:var(--primary);"' : 'style="font-family:var(--mono);font-size:1rem;font-weight:600;letter-spacing:1px;"';
+
     Utils.el('at-modal-body').innerHTML = `
       <input type="hidden" id="at-id" value="${a?.id || ''}">
       <div class="form-group">
         <label class="form-label">Número da OM (SAP) <span>*</span></label>
         <input type="text" class="form-control" id="at-om"
-          value="${a?.om || ''}" placeholder="Ex: 1234567"
-          style="font-family:var(--mono);font-size:1rem;font-weight:600;letter-spacing:1px;">
-        <div class="form-hint">Número único gerado pelo SAP. Será usado como chave da atividade.</div>
+          value="${a?.om || a?.id || ''}" placeholder="Ex: 1234567"
+          ${omReadonly}>
+        <div class="form-hint">${a ? '⚠️ A OM não pode ser alterada após o cadastro.' : 'Número único gerado pelo SAP. Será usado como chave da atividade.'}</div>
       </div>
       <div class="form-row">
         <div class="form-group">
