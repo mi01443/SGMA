@@ -121,6 +121,7 @@ const Utils = (() => {
     const map = {
       concluida:        ['badge-success', 'Concluída'],
       nao_realizada:    ['badge-danger', 'Não realizada'],
+      parcial:          ['badge-warning', 'Parcial'],
       pendente:         ['badge-warning', 'Pendente'],
       fora_programacao: ['badge-info', 'Fora programação'],
       ver_e_agir:       ['badge', 'Ver e Agir'],
