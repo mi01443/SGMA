@@ -534,7 +534,7 @@ Essa ação não pode ser desfeita.`)) return;
       </div>
       <div style="padding:1rem;">
         <div class="form-row mb-3" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));">
-          ${[['col-eq','Equipamento'],['col-desc','Atividade/Descrição'],['col-tecnico','Técnico'],['col-data','Data programada'],['col-hh','HH Estimado'],['col-prio','Prioridade']].map(([id,label]) => `
+          ${[['col-om','OM (SAP)'],['col-eq','Equipamento'],['col-sub','Sub Sistema'],['col-desc','Atividade/Descrição'],['col-tecnico','Técnico'],['col-data','Data programada'],['col-hh','HH Estimado'],['col-prio','Prioridade']].map(([id,label]) => `
             <div class="form-group">
               <label class="form-label">${label}</label>
               <select class="form-control" id="${id}">
@@ -585,7 +585,9 @@ Essa ação não pode ser desfeita.`)) return;
   async function confirmarImport(rows, cols) {
     const get = id => Utils.el(id)?.value || '';
     const mapa = {
+      om:      get('col-om'),
       eq:      get('col-eq'),
+      sub:     get('col-sub'),
       desc:    get('col-desc'),
       tecnico: get('col-tecnico'),
       data:    get('col-data'),
@@ -593,16 +595,22 @@ Essa ação não pode ser desfeita.`)) return;
       prio:    get('col-prio'),
     };
 
-    const lista = rows.map(r => ({
-      tipo:           get('import-tipo'),
-      semanaId:       get('import-semana'),
-      equipamentoRef: mapa.eq    ? r[mapa.eq]    : '',
-      descricao:      mapa.desc  ? r[mapa.desc]  : '',
-      tecnicoRef:     mapa.tecnico ? r[mapa.tecnico] : get('import-tecnico-padrao'),
-      dataProgramada: mapa.data  ? r[mapa.data]  : '',
-      hhEstimado:     mapa.hh    ? parseFloat(r[mapa.hh]) || 1 : 1,
-      prioridade:     mapa.prio  ? r[mapa.prio]  : 'Normal',
-    })).filter(r => r.descricao);
+    const lista = rows.map(r => {
+      const om = mapa.om ? String(r[mapa.om] || '').trim() : '';
+      return {
+        id:             om || '',   // OM vira o ID
+        om:             om,
+        tipo:           get('import-tipo'),
+        semanaId:       get('import-semana'),
+        equipamentoRef: mapa.eq  ? String(r[mapa.eq]  || '').trim() : '',
+        subSistemaRef:  mapa.sub ? String(r[mapa.sub] || '').trim() : '',
+        descricao:      mapa.desc  ? String(r[mapa.desc]  || '').trim() : '',
+        tecnicoRef:     mapa.tecnico ? String(r[mapa.tecnico] || '').trim() : get('import-tecnico-padrao'),
+        dataProgramada: mapa.data  ? String(r[mapa.data]  || '').trim() : '',
+        hhEstimado:     mapa.hh    ? parseFloat(r[mapa.hh]) || 1 : 1,
+        prioridade:     mapa.prio  ? String(r[mapa.prio]  || 'Normal').trim() : 'Normal',
+      };
+    }).filter(r => r.descricao);
 
     if (!lista.length) { Utils.toast('Nenhuma linha válida para importar', 'error'); return; }
 
@@ -611,7 +619,9 @@ Essa ação não pode ser desfeita.`)) return;
     Utils.showLoading(`Importando ${lista.length} atividades...`);
     try {
       const res = await API.importAtividades(lista);
-      Utils.toast(`${res.criadas || lista.length} atividades importadas!`, 'success');
+      const erros = res.erros || [];
+      Utils.toast(`${res.criadas} atividades importadas!${erros.length ? ' ' + erros.length + ' ignoradas.' : ''}`, 'success');
+      if (erros.length) console.warn('Erros na importação:', erros);
       Utils.el('import-preview')?.classList.add('hidden');
     } catch (e) {
       Utils.toast('Erro na importação: ' + e.message, 'error');
