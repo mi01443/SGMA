@@ -113,9 +113,12 @@
       <div id="detail-checklist" class="detail-section"></div>
       <div id="detail-exec-form"></div>
     </div>
-    <div class="detail-footer">
-      <button class="btn btn-secondary flex-1" onclick="document.querySelector('.detail-panel').classList.remove('open')">Cancelar</button>
-      <button class="btn btn-primary flex-1" id="btn-save-exec">💾 Registrar</button>
+    <div class="detail-footer" style="flex-direction:column;gap:8px;">
+      <div style="display:flex;gap:8px;width:100%;">
+        <button class="btn btn-secondary flex-1" onclick="document.querySelector('.detail-panel').classList.remove('open')">Cancelar</button>
+        <button class="btn btn-ghost flex-1" id="btn-save-progresso" style="border-color:var(--gray-300);">💾 Salvar Progresso</button>
+      </div>
+      <button class="btn btn-primary w-full" id="btn-save-exec">✅ Finalizar e Registrar</button>
     </div>
   </div>
 </div>
