@@ -395,32 +395,191 @@
   function renderDetailPanel() {
     if (!currentAtiv) return;
     const a = currentAtiv;
-    Utils.setHTML('detail-equip', a.equipamento_nome || '—');
+
+    // Atualizar cabeçalho do painel
+    Utils.setHTML('detail-equip', `<span style="font-family:var(--mono);font-size:.85rem;color:var(--primary);font-weight:700;">OM ${a.om || a.id}</span>`);
     Utils.setHTML('detail-desc',  a.descricao || '—');
 
-    Utils.setHTML('detail-info', `
-      <div class="detail-section">
-        <!-- OM destaque -->
-        <div style="background:var(--primary-light);border:1.5px solid var(--primary);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
-          <div>
-            <div style="font-size:.7rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.06em;">Ordem de Manutenção (OM)</div>
-            <div style="font-family:var(--mono);font-size:1.3rem;font-weight:700;color:var(--primary-dark);letter-spacing:2px;">${a.om || a.id}</div>
-          </div>
-          ${Utils.statusBadge(a.status)}
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.825rem;">
-          <div><span class="text-muted">Equipamento:</span> <strong>${a.equipamento_nome||'—'}</strong></div>
-          <div><span class="text-muted">Sub Sistema:</span> <strong>${a.sub_sistema_nome||'—'}</strong></div>
-          <div><span class="text-muted">Tipo:</span> ${Utils.tipoBadge(a.tipo)}</div>
-          <div><span class="text-muted">Prioridade:</span> ${Utils.prioridadeBadge(a.prioridade||'Normal')}</div>
-          <div><span class="text-muted">Data:</span> <strong>${Utils.fmtDate(a.data_programada)}</strong></div>
-          <div><span class="text-muted">HH Estimado:</span> <strong>${Utils.fmtHH(a.hh_estimado)}</strong></div>
-          <div><span class="text-muted">Técnico:</span> <strong>${a.tecnico_nome||'—'}</strong></div>
-        </div>
-      </div>`);
+    const motOpts = motivos.map(m => `<option value="${m.id}">${m.descricao}</option>`).join('');
+    let selectedStatus = a.status !== 'pendente' ? a.status : null;
 
+    // Helper linha somente leitura
+    const row = (label, val) =>
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--gray-100);">' +
+      '<span style="color:var(--gray-500);font-size:.775rem;white-space:nowrap;">' + label + '</span>' +
+      '<span style="font-weight:500;text-align:right;">' + val + '</span>' +
+      '</div>';
+
+    Utils.setHTML('detail-info', `
+      <!-- ── CABEÇALHO OM + DESCRIÇÃO ── -->
+      <div style="background:var(--primary);border-radius:var(--radius-lg);padding:16px;margin-bottom:16px;">
+        <div style="font-size:.7rem;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Ordem de Manutenção</div>
+        <div style="font-family:var(--mono);font-size:1.6rem;font-weight:700;color:#fff;letter-spacing:3px;margin-bottom:6px;">${a.om || a.id}</div>
+        <div style="font-size:.875rem;color:rgba(255,255,255,.9);line-height:1.4;">${a.descricao || '—'}</div>
+      </div>
+
+      <!-- ── DADOS DA ATIVIDADE (somente leitura) ── -->
+      <div class="detail-section">
+        <div class="detail-section-title">Dados da Atividade</div>
+        <div style="display:grid;gap:6px;font-size:.825rem;">
+          ${row('Equipamento',  a.equipamento_nome || '—')}
+          ${row('Sub Sistema',  a.sub_sistema_nome || '—')}
+          ${row('Tipo',         Utils.tipoBadge(a.tipo))}
+          ${row('Prioridade',   Utils.prioridadeBadge(a.prioridade || 'Normal'))}
+          ${row('Data',         Utils.fmtDate(a.data_programada))}
+          ${row('HH Estimado',  Utils.fmtHH(a.hh_estimado))}
+          ${row('Técnico',      a.tecnico_nome || '—')}
+          ${row('Semana',       a.semana_id || '—')}
+          ${row('Status atual', Utils.statusBadge(a.status))}
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- ── CHECKLIST ── -->
+      <div class="detail-section" id="detail-checklist-wrap">
+        <div class="detail-section-title">Checklist de Execução</div>
+        <div id="detail-checklist"></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- ── REGISTRO DE EXECUÇÃO ── -->
+      <div class="detail-section">
+        <div class="detail-section-title">Registro de Execução</div>
+
+        <!-- Status de execução -->
+        <div class="form-group">
+          <label class="form-label">Resultado <span>*</span></label>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;" id="status-btns">
+            <button class="btn btn-sm ${selectedStatus==='concluida'?'btn-success':'btn-secondary'}" id="btn-status-ok" data-status="concluida">
+              ✅ Executada
+            </button>
+            <button class="btn btn-sm ${selectedStatus==='parcial'?'btn-warning':'btn-secondary'}" id="btn-status-parc" data-status="parcial"
+              style="${selectedStatus==='parcial'?'background:#d97706;color:#fff;border-color:#d97706;':''}">
+              ⚠️ Parcial
+            </button>
+            <button class="btn btn-sm ${selectedStatus==='nao_realizada'?'btn-danger':'btn-secondary'}" id="btn-status-nok" data-status="nao_realizada">
+              ❌ Não exec.
+            </button>
+          </div>
+        </div>
+
+        <!-- Motivo (não realizada ou parcial) -->
+        <div class="form-group ${selectedStatus==='nao_realizada'||selectedStatus==='parcial'?'':'hidden'}" id="motivo-group">
+          <label class="form-label">Motivo <span>*</span></label>
+          <select class="form-control" id="exec-motivo">
+            <option value="">Selecione o motivo...</option>
+            ${motOpts}
+          </select>
+        </div>
+
+        <!-- Duração -->
+        <div class="form-group">
+          <label class="form-label">⏱ Duração da execução (horas)</label>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <input type="number" id="hh-real-input" class="form-control"
+              min="0.25" step="0.25" placeholder="Ex: 1.5"
+              style="width:130px;font-family:var(--mono);font-size:1.1rem;font-weight:600;text-align:center;">
+            <span class="text-muted text-sm">h &nbsp;·&nbsp; estimado: <strong>${Utils.fmtHH(a.hh_estimado)}</strong></span>
+          </div>
+        </div>
+
+        <!-- Observação -->
+        <div class="form-group">
+          <label class="form-label">📝 Observações</label>
+          <textarea class="form-control" id="exec-obs" rows="3"
+            placeholder="Descreva o que foi realizado, anomalias encontradas..."></textarea>
+        </div>
+
+        <!-- Foto Antes -->
+        <div class="form-group">
+          <label class="form-label">📷 Foto — Antes</label>
+          <div class="photo-upload-area" onclick="document.getElementById('file-before').click()">
+            <input type="file" id="file-before" accept="image/*" multiple>
+            <p class="text-sm text-muted">Toque para adicionar foto</p>
+          </div>
+          <div class="photo-grid" id="photos-before-grid"></div>
+        </div>
+
+        <!-- Foto Depois -->
+        <div class="form-group">
+          <label class="form-label">📷 Foto — Depois</label>
+          <div class="photo-upload-area" onclick="document.getElementById('file-after').click()">
+            <input type="file" id="file-after" accept="image/*" multiple>
+            <p class="text-sm text-muted">Toque para adicionar foto</p>
+          </div>
+          <div class="photo-grid" id="photos-after-grid"></div>
+        </div>
+      </div>
+    `);
+
+    // ── Renderizar checklist ──
     renderChecklist();
-    renderExecForm();
+
+    // ── Handlers de status ──
+    function updateStatusUI() {
+      ['ok','parc','nok'].forEach(k => {
+        const btn = Utils.el('btn-status-' + k);
+        if (!btn) return;
+        btn.className = 'btn btn-sm btn-secondary';
+      });
+      if (selectedStatus === 'concluida')     { Utils.el('btn-status-ok').className   = 'btn btn-sm btn-success'; }
+      if (selectedStatus === 'parcial')       { Utils.el('btn-status-parc').style.cssText = 'background:#d97706;color:#fff;border-color:#d97706;'; Utils.el('btn-status-parc').className = 'btn btn-sm'; }
+      if (selectedStatus === 'nao_realizada') { Utils.el('btn-status-nok').className  = 'btn btn-sm btn-danger'; }
+      const showMotivo = selectedStatus === 'nao_realizada' || selectedStatus === 'parcial';
+      Utils.el('motivo-group')?.classList.toggle('hidden', !showMotivo);
+    }
+
+    Utils.el('btn-status-ok')?.addEventListener('click',   () => { selectedStatus = 'concluida';     updateStatusUI(); });
+    Utils.el('btn-status-parc')?.addEventListener('click', () => { selectedStatus = 'parcial';        updateStatusUI(); });
+    Utils.el('btn-status-nok')?.addEventListener('click',  () => { selectedStatus = 'nao_realizada'; updateStatusUI(); });
+
+    // ── Fotos ──
+    setupPhotoUpload('file-before', 'photos-before-grid', fotosBefore);
+    setupPhotoUpload('file-after',  'photos-after-grid',  fotosAfter);
+
+    // ── Submit ──
+    const btnSave = Utils.el('btn-save-exec');
+    if (btnSave) {
+      btnSave.onclick = async () => {
+        if (!selectedStatus) { Utils.toast('Selecione o resultado da execução', 'error'); return; }
+        if ((selectedStatus === 'nao_realizada' || selectedStatus === 'parcial') && !Utils.el('exec-motivo').value) {
+          Utils.toast('Selecione o motivo', 'error'); return;
+        }
+        btnSave.disabled = true;
+        btnSave.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Salvando...';
+        try {
+          const hhReal = parseFloat(Utils.el('hh-real-input')?.value) || 0;
+          Utils.showLoading('Enviando fotos...');
+          const linksAntes  = await uploadFotos(fotosBefore, 'antes');
+          const linksDepois = await uploadFotos(fotosAfter,  'depois');
+          Utils.showLoading('Salvando execução...');
+          await API.saveExecucao({
+            atividadeId:  String(currentAtiv.id),
+            tecnicoId:    session.id,
+            status:       selectedStatus,
+            motivoId:     Utils.el('exec-motivo')?.value || '',
+            obs:          Utils.el('exec-obs')?.value || '',
+            hhReal:       hhReal,
+            fotosAntes:   JSON.stringify(linksAntes),
+            fotosDepois:  JSON.stringify(linksDepois),
+          });
+          const idx = atividades.findIndex(a => String(a.id) === String(currentAtiv.id));
+          if (idx >= 0) atividades[idx].status = selectedStatus;
+          Utils.toast('Execução registrada!', 'success');
+          closeDetailPanel();
+          renderDashboard();
+        } catch (e) {
+          console.error('Erro saveExecucao:', e);
+          Utils.toast('Erro: ' + (e.message || 'Verifique o console'), 'error');
+        } finally {
+          Utils.hideLoading();
+          btnSave.disabled = false;
+          btnSave.innerHTML = '💾 Registrar';
+        }
+      };
+    }
   }
 
   function renderChecklist() {
@@ -452,123 +611,7 @@
     });
   }
 
-  function renderExecForm() {
-    const el = Utils.el('detail-exec-form');
-    if (!el) return;
-    const motOpts = motivos.map(m => `<option value="${m.id}">${m.descricao}</option>`).join('');
-    let selectedStatus = currentAtiv.status !== 'pendente' ? currentAtiv.status : null;
-
-    el.innerHTML = `
-      <div class="detail-section">
-        <div class="detail-section-title">Registro de Execução</div>
-
-        <!-- HH Real manual -->
-        <div style="background:var(--gray-50);border-radius:var(--radius);border:1px solid var(--gray-200);padding:12px 14px;margin-bottom:1rem;">
-          <div class="text-xs text-muted" style="margin-bottom:6px;font-weight:600;">⏱ Tempo de execução (horas)</div>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <input type="number" id="hh-real-input" class="form-control"
-              min="0.25" step="0.25" placeholder="Ex: 1.5"
-              style="width:120px;font-family:var(--mono);font-size:1.1rem;font-weight:600;text-align:center;">
-            <span class="text-muted text-sm">horas &nbsp;·&nbsp; HH estimado: <strong>${Utils.fmtHH(a.hh_estimado)}</strong></span>
-          </div>
-        </div>
-
-        <!-- Status -->
-        <div class="form-group">
-          <label class="form-label">Status <span>*</span></label>
-          <div style="display:flex;gap:8px;">
-            <button class="btn flex-1 ${selectedStatus==='concluida'?'btn-success':'btn-secondary'}" id="btn-status-ok" data-status="concluida">✅ Concluída</button>
-            <button class="btn flex-1 ${selectedStatus==='nao_realizada'?'btn-danger':'btn-secondary'}" id="btn-status-nok" data-status="nao_realizada">❌ Não realizada</button>
-          </div>
-        </div>
-
-        <div class="form-group ${selectedStatus==='nao_realizada'?'':'hidden'}" id="motivo-group">
-          <label class="form-label">Motivo <span>*</span></label>
-          <select class="form-control" id="exec-motivo"><option value="">Selecione...</option>${motOpts}</select>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Observações</label>
-          <textarea class="form-control" id="exec-obs" rows="3" placeholder="Descreva o que foi realizado..."></textarea>
-        </div>
-
-        <!-- Fotos Antes -->
-        <div class="form-group">
-          <label class="form-label">📷 Foto — Antes</label>
-          <div class="photo-upload-area" onclick="document.getElementById('file-before').click()">
-            <input type="file" id="file-before" accept="image/*" multiple>
-            <p class="text-sm text-muted">Toque para adicionar foto</p>
-          </div>
-          <div class="photo-grid" id="photos-before-grid"></div>
-        </div>
-
-        <!-- Fotos Depois -->
-        <div class="form-group">
-          <label class="form-label">📷 Foto — Depois</label>
-          <div class="photo-upload-area" onclick="document.getElementById('file-after').click()">
-            <input type="file" id="file-after" accept="image/*" multiple>
-            <p class="text-sm text-muted">Toque para adicionar foto</p>
-          </div>
-          <div class="photo-grid" id="photos-after-grid"></div>
-        </div>
-      </div>`;
-
-    // Status buttons
-    function updateStatusUI() {
-      Utils.el('btn-status-ok')?.classList.toggle('btn-success',    selectedStatus === 'concluida');
-      Utils.el('btn-status-ok')?.classList.toggle('btn-secondary',  selectedStatus !== 'concluida');
-      Utils.el('btn-status-nok')?.classList.toggle('btn-danger',     selectedStatus === 'nao_realizada');
-      Utils.el('btn-status-nok')?.classList.toggle('btn-secondary',  selectedStatus !== 'nao_realizada');
-      Utils.el('motivo-group')?.classList.toggle('hidden', selectedStatus !== 'nao_realizada');
-    }
-    Utils.el('btn-status-ok')?.addEventListener('click',  () => { selectedStatus = 'concluida';     updateStatusUI(); });
-    Utils.el('btn-status-nok')?.addEventListener('click', () => { selectedStatus = 'nao_realizada'; updateStatusUI(); });
-
-    // Fotos
-    setupPhotoUpload('file-before', 'photos-before-grid', fotosBefore);
-    setupPhotoUpload('file-after',  'photos-after-grid',  fotosAfter);
-
-    // Submit
-    const btnSave = Utils.el('btn-save-exec');
-    if (btnSave) {
-      btnSave.onclick = async () => {
-        if (!selectedStatus) { Utils.toast('Selecione o status', 'error'); return; }
-        if (selectedStatus === 'nao_realizada' && !Utils.el('exec-motivo').value) {
-          Utils.toast('Selecione o motivo', 'error'); return;
-        }
-        btnSave.disabled = true;
-        btnSave.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Salvando...';
-        try {
-          const hhReal = parseFloat(Utils.el('hh-real-input')?.value) || 0;
-          Utils.showLoading('Enviando fotos...');
-          const linksAntes  = await uploadFotos(fotosBefore, 'antes');
-          const linksDepois = await uploadFotos(fotosAfter,  'depois');
-          Utils.showLoading('Salvando execução...');
-          await API.saveExecucao({
-            atividadeId:  String(currentAtiv.id),
-            tecnicoId:    session.id,
-            status:       selectedStatus,
-            motivoId:     Utils.el('exec-motivo')?.value || '',
-            obs:          Utils.el('exec-obs')?.value || '',
-            hhReal:       hhReal,
-            fotosAntes:   JSON.stringify(linksAntes),
-            fotosDepois:  JSON.stringify(linksDepois),
-          });
-          const idx = atividades.findIndex(a => String(a.id) === String(currentAtiv.id));
-          if (idx >= 0) atividades[idx].status = selectedStatus;
-          Utils.toast('Execução registrada!', 'success');
-          closeDetailPanel();
-          renderDashboard();
-        } catch (e) {
-          Utils.toast('Erro: ' + e.message, 'error');
-        } finally {
-          Utils.hideLoading();
-          btnSave.disabled = false;
-          btnSave.innerHTML = '💾 Registrar';
-        }
-      };
-    }
-  }
+  // renderExecForm movido para renderDetailPanel
 
   // ── Timer ──
   function startTimer() {
