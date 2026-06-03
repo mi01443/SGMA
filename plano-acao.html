@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGMA — Plano de Ação</title>
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/plano.css">
+</head>
+<body>
+<div class="app-layout">
+  <div class="sidebar-overlay"></div>
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-text">
+        <div class="logo-name">SGMA</div>
+        <div class="logo-sub">Ger. de Manutenção</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Menu</div>
+      <a class="nav-item" href="app.html">Atividades</a>
+      <a class="nav-item" href="relatorio.html">Relatórios</a>
+      <a class="nav-item active" href="plano-acao.html">Plano de Ação</a>
+      <a class="nav-item" href="admin.html" id="nav-admin">Administração</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-info">
+        <div class="user-name" id="user-name">—</div>
+        <div class="user-role" id="user-role">—</div>
+      </div>
+      <button class="logout-btn" title="Sair">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="topbar">
+      <button class="topbar-hamburger btn-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <span class="topbar-title" id="topbar-title">Planos de Ação</span>
+      <div class="topbar-actions">
+        <button class="btn btn-primary btn-sm" id="btn-novo-plano">+ Novo Plano</button>
+      </div>
+    </header>
+
+    <!-- VIEWS -->
+    <div class="page-content" id="view-lista">
+      <!-- Dashboard cards -->
+      <div class="stat-cards" id="pa-stats"></div>
+
+      <!-- Filtros -->
+      <div class="pa-filter-bar">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;flex:1;">
+          <button class="filter-chip active" data-filter="todos">Todos</button>
+          <button class="filter-chip" data-filter="Aberto">Abertos</button>
+          <button class="filter-chip" data-filter="Em andamento">Em andamento</button>
+          <button class="filter-chip" data-filter="Aguardando aprovação">Ag. aprovação</button>
+          <button class="filter-chip" data-filter="Concluído">Concluídos</button>
+          <button class="filter-chip" data-filter="atrasado">Atrasados 🔴</button>
+        </div>
+        <input type="text" class="form-control" id="pa-search" placeholder="🔍 Buscar plano..." style="width:200px;">
+      </div>
+
+      <div id="pa-lista"></div>
+    </div>
+
+    <!-- DETALHE DO PLANO -->
+    <div class="page-content hidden" id="view-detalhe">
+      <div id="pa-detalhe-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAIS ══════════ -->
+
+<!-- Modal: Novo/Editar Plano -->
+<div id="modal-plano" class="modal-overlay" style="display:none;">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modal-plano-title">Novo Plano de Ação</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Utils.closeModal('modal-plano')">✕</button>
+    </div>
+    <form id="form-plano">
+      <input type="hidden" id="plano-id">
+
+      <div style="font-size:.65rem;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.75rem;">Identificação</div>
+      <div class="form-group">
+        <label class="form-label">Título <span>*</span></label>
+        <input type="text" id="plano-titulo" class="form-control" required placeholder="Ex: Adequação do sistema de emergência TC-01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descrição <span>*</span></label>
+        <textarea id="plano-desc" class="form-control" rows="3" placeholder="Descreva o problema, necessidade ou oportunidade de melhoria..."></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Origem <span>*</span></label>
+          <select id="plano-origem" class="form-control">
+            <option>Auditoria</option><option>Inspeção</option>
+            <option>Manutenção</option><option>Incidente</option>
+            <option>Melhoria Contínua</option><option>Segurança</option>
+            <option>Qualidade</option><option>Operação</option><option>Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Classificação</label>
+          <select id="plano-classif" class="form-control">
+            <option>Manutenção</option><option>Segurança</option>
+            <option>Meio Ambiente</option><option>Qualidade</option>
+            <option>Produção</option><option>Automação</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Prioridade <span>*</span></label>
+          <select id="plano-prio" class="form-control">
+            <option>Baixa</option><option>Média</option><option>Alta</option><option>Crítica</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Prazo final <span>*</span></label>
+          <input type="date" id="plano-prazo" class="form-control" required>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Setor</label>
+          <select id="plano-setor" class="form-control">
+            <option>Elétrica</option><option>Instrumentação</option>
+            <option>Automação</option><option>Mecânica</option>
+            <option>Operação</option><option>Geral</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Aprovador responsável</label>
+          <select id="plano-aprovador" class="form-control">
+            <option value="">— Selecione —</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="font-size:.65rem;font-weight:700;color:var(--gray-400);text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0;">Custo Estimado</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">HH previsto</label>
+          <input type="number" id="plano-hh-prev" class="form-control" step="0.5" placeholder="Ex: 16">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Material previsto (R$)</label>
+          <input type="number" id="plano-mat-prev" class="form-control" step="0.01" placeholder="Ex: 1500.00">
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="Utils.closeModal('modal-plano')">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btn-salvar-plano">Salvar Plano</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Nova/Editar Atividade do Plano -->
+<div id="modal-atividade-pa" class="modal-overlay" style="display:none;">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modal-atpa-title">Nova Atividade</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Utils.closeModal('modal-atividade-pa')">✕</button>
+    </div>
+    <form id="form-atpa">
+      <input type="hidden" id="atpa-id">
+      <input type="hidden" id="atpa-plano-id">
+      <div class="form-group">
+        <label class="form-label">Descrição da Atividade <span>*</span></label>
+        <textarea id="atpa-desc" class="form-control" rows="2" required placeholder="O que precisa ser feito..."></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Responsável <span>*</span></label>
+          <select id="atpa-resp" class="form-control" required>
+            <option value="">— Selecione —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">% Concluída</label>
+          <input type="number" id="atpa-pct" class="form-control" min="0" max="100" step="5" value="0" placeholder="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data Início</label>
+          <input type="date" id="atpa-inicio" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Prazo (data limite) <span>*</span></label>
+          <input type="date" id="atpa-prazo" class="form-control" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data Conclusão Real</label>
+          <input type="date" id="atpa-conclusao" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select id="atpa-status" class="form-control">
+            <option>Não iniciada</option>
+            <option>Em andamento</option>
+            <option>Concluída</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Comentários / Observações</label>
+        <textarea id="atpa-comentarios" class="form-control" rows="2" placeholder="Observações, impedimentos, atualizações..."></textarea>
+      </div>
+      <!-- Upload de evidências -->
+      <div class="form-group">
+        <label class="form-label">📎 Evidências (fotos)</label>
+        <div class="photo-upload-area" onclick="document.getElementById('atpa-fotos').click()">
+          <input type="file" id="atpa-fotos" accept="image/*,application/pdf" multiple>
+          <p class="text-sm text-muted">Fotos, PDFs, relatórios</p>
+        </div>
+        <div class="photo-grid" id="atpa-fotos-grid"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="Utils.closeModal('modal-atividade-pa')">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btn-salvar-atpa">Salvar Atividade</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Aprovação -->
+<div id="modal-aprovacao" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Aprovação do Plano</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Utils.closeModal('modal-aprovacao')">✕</button>
+    </div>
+    <input type="hidden" id="aprov-plano-id">
+    <div class="form-group">
+      <label class="form-label">Decisão <span>*</span></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div class="status-btn" id="btn-aprovar" onclick="selecionarDecisao('Aprovado')">✅ Aprovar</div>
+        <div class="status-btn" id="btn-reprovar" onclick="selecionarDecisao('Reprovado')">❌ Reprovar</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Comentário / Justificativa</label>
+      <textarea id="aprov-comentario" class="form-control" rows="3" placeholder="Descreva a decisão..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="Utils.closeModal('modal-aprovacao')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-aprovacao">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/plano-acao.js"></script>
+</body>
+</html>
