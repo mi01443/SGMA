@@ -1,0 +1,124 @@
+/* ── Plano de Ação — CSS ── */
+
+/* Filter bar */
+.pa-filter-bar {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 1.25rem; flex-wrap: wrap;
+}
+
+/* Plano card */
+.pa-card {
+  background: #fff; border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg); margin-bottom: 10px;
+  box-shadow: var(--shadow-xs); transition: all var(--transition);
+  overflow: hidden;
+}
+.pa-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+.pa-card-header {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 1rem 1.25rem; cursor: pointer;
+  border-bottom: 1px solid var(--gray-100);
+}
+.pa-card-body { padding: 1rem 1.25rem; }
+
+/* Prioridade stripe */
+.pa-prio-stripe {
+  width: 4px; border-radius: 4px; flex-shrink: 0; margin-top: 3px; min-height: 40px;
+}
+.prio-Baixa    { background: var(--success); }
+.prio-Média    { background: var(--info); }
+.prio-Alta     { background: var(--warning); }
+.prio-Crítica  { background: var(--danger); }
+
+.pa-card-info { flex: 1; min-width: 0; }
+.pa-titulo { font-size: .9375rem; font-weight: 700; color: var(--gray-900); margin-bottom: 4px; }
+.pa-meta   { display: flex; flex-wrap: wrap; gap: 10px; font-size: .72rem; color: var(--gray-400); margin-top: 6px; align-items: center; }
+.pa-meta span { display: flex; align-items: center; gap: 3px; }
+
+/* Prazo badge */
+.prazo-ok      { background: var(--success-light); color: var(--success); padding: 2px 9px; border-radius: 99px; font-size: .7rem; font-weight: 600; }
+.prazo-urgente { background: var(--warning-light); color: var(--warning); padding: 2px 9px; border-radius: 99px; font-size: .7rem; font-weight: 600; }
+.prazo-atraso  { background: var(--danger-light);  color: var(--danger);  padding: 2px 9px; border-radius: 99px; font-size: .7rem; font-weight: 600; }
+
+/* Progresso geral */
+.pa-progresso-wrap { margin-top: 8px; }
+.pa-progresso-label { display: flex; justify-content: space-between; font-size: .7rem; color: var(--gray-400); margin-bottom: 4px; }
+
+/* Atividades do plano */
+.atpa-item {
+  display: grid; grid-template-columns: 24px 1fr auto;
+  gap: 10px; align-items: flex-start;
+  padding: 12px 0; border-bottom: 1px solid var(--gray-100);
+}
+.atpa-item:last-child { border-bottom: none; }
+
+.atpa-num {
+  width: 24px; height: 24px; border-radius: 50%; background: var(--gray-100);
+  color: var(--gray-500); font-size: .7rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;
+}
+.atpa-num.done { background: var(--success-light); color: var(--success); }
+.atpa-num.late { background: var(--danger-light);  color: var(--danger); }
+
+.atpa-body { min-width: 0; }
+.atpa-desc { font-size: .875rem; font-weight: 500; color: var(--gray-800); }
+.atpa-info { font-size: .72rem; color: var(--gray-400); margin-top: 3px; display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* % bar */
+.pct-bar-wrap { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.pct-bar { flex: 1; height: 5px; background: var(--gray-100); border-radius: 99px; overflow: hidden; }
+.pct-fill { height: 100%; border-radius: 99px; transition: width .4s ease; background: var(--primary); }
+.pct-fill.done { background: var(--success); }
+.pct-label { font-size: .68rem; font-weight: 700; color: var(--gray-500); min-width: 28px; text-align: right; }
+
+.atpa-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+/* Aprovação box */
+.aprov-box {
+  background: var(--gray-50); border: 1px solid var(--gray-200);
+  border-radius: var(--radius); padding: 12px 14px;
+  display: flex; align-items: flex-start; gap: 12px;
+}
+.aprov-box.aprovado  { background: var(--success-light); border-color: #a7f3d0; }
+.aprov-box.reprovado { background: var(--danger-light);  border-color: #fecaca; }
+
+/* Detalhe do plano */
+.pa-detail-header {
+  background: linear-gradient(135deg, var(--gray-900) 0%, var(--gray-800) 100%);
+  border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.25rem; color: #fff;
+}
+.pa-detail-id    { font-family: var(--mono); font-size: .72rem; color: var(--gray-400); margin-bottom: 6px; letter-spacing: 1px; }
+.pa-detail-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 8px; }
+.pa-detail-desc  { font-size: .875rem; color: var(--gray-300); line-height: 1.5; }
+
+/* Notificação badge */
+.notif-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 99px; font-size: .7rem; font-weight: 600; }
+
+/* Grid de evidências */
+.evidencias-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.evidencia-item { width: 76px; height: 76px; border-radius: var(--radius); border: 2px solid var(--gray-200); overflow: hidden; cursor: pointer; position: relative; }
+.evidencia-item img { width: 100%; height: 100%; object-fit: cover; }
+.evidencia-pdf { width: 76px; height: 76px; border-radius: var(--radius); border: 2px solid var(--gray-200); background: var(--danger-light); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: .65rem; font-weight: 600; color: var(--danger); cursor: pointer; }
+
+/* Status badge plano */
+.status-Aberto               { background: var(--info-light);    color: var(--info); }
+.status-Em.andamento         { background: var(--primary-light); color: var(--primary); }
+.status-Aguardando.aprovação { background: var(--warning-light); color: var(--warning); }
+.status-Concluído            { background: var(--success-light); color: var(--success); }
+.status-Cancelado            { background: var(--gray-100);      color: var(--gray-500); }
+
+/* Timeline section */
+.timeline-section { position: relative; padding-left: 20px; }
+.timeline-section::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: var(--gray-200); }
+.timeline-item { position: relative; margin-bottom: 12px; }
+.timeline-item::before { content: ''; position: absolute; left: -16px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); border: 2px solid #fff; box-shadow: 0 0 0 2px var(--primary-mid); }
+.timeline-text { font-size: .8rem; color: var(--gray-600); }
+.timeline-time { font-size: .7rem; color: var(--gray-400); margin-top: 2px; }
+
+@media (max-width: 640px) {
+  .pa-card-header { padding: .875rem 1rem; }
+  .pa-card-body   { padding: .875rem 1rem; }
+  .pa-detail-header { padding: 1rem; }
+  .pa-filter-bar { gap: 6px; }
+  #pa-search { width: 100% !important; }
+}
