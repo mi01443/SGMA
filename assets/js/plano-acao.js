@@ -74,8 +74,12 @@
     // Busca
     Utils.el('pa-search')?.addEventListener('input', renderLista);
 
-    // Novo plano
-    Utils.el('btn-novo-plano')?.addEventListener('click', () => abrirModalPlano());
+    // Novo plano — só supervisor/admin
+    if (session.perfil === 'tecnico') {
+      Utils.el('btn-novo-plano')?.style && (Utils.el('btn-novo-plano').style.display = 'none');
+    } else {
+      Utils.el('btn-novo-plano')?.addEventListener('click', () => abrirModalPlano());
+    }
 
     // Form plano
     Utils.el('form-plano')?.addEventListener('submit', async e => {
@@ -137,6 +141,16 @@
     renderStats();
 
     let lista = [...planos];
+
+    // Técnico vê apenas planos que têm atividades atribuídas a ele
+    if (session.perfil === 'tecnico') {
+      const meusPlanosIds = new Set(
+        atividadesPA.filter(a => String(a.responsavel_id) === String(session.id))
+                    .map(a => String(a.plano_id))
+      );
+      lista = lista.filter(p => meusPlanosIds.has(String(p.id)));
+    }
+
     const busca = (Utils.el('pa-search')?.value || '').toLowerCase().trim();
 
     // Filtro status
@@ -245,8 +259,8 @@
     const criador   = profissionais.find(u => String(u.id) === String(p.criado_por));
     const aprovador = profissionais.find(u => String(u.id) === String(p.aprovador));
     const aprov     = aprovacoes.find(a => String(a.plano_id) === String(p.id));
-    const isSup     = session.perfil === 'supervisor' || session.perfil === 'admin';
-    const canEdit   = isSup || String(p.criado_por) === String(session.id);
+    const isSup   = session.perfil === 'supervisor' || session.perfil === 'admin';
+    const canEdit = isSup; // técnico NUNCA edita o plano nem adiciona atividades
 
     Utils.setHTML('pa-detalhe-content', `
       <!-- Voltar -->
@@ -283,11 +297,11 @@
           <div class="card mb-3">
             <div class="card-header">
               <span class="card-title">📋 Atividades do Plano</span>
-              ${canEdit ? `<button class="btn btn-primary btn-sm" id="btn-nova-atpa">+ Atividade</button>` : ''}
+              ${isSup ? `<button class="btn btn-primary btn-sm" id="btn-nova-atpa">+ Atividade</button>` : ''}
             </div>
             ${ats.length ? ats.map((a, i) => renderAtividadePAItem(a, i)).join('') : `
               <div class="empty-state" style="padding:24px;">
-                <p>Nenhuma atividade cadastrada</p>
+                <p>${isSup ? 'Nenhuma atividade cadastrada' : 'Nenhuma atividade atribuída a você neste plano'}</p>
               </div>`}
           </div>
 
@@ -346,7 +360,7 @@
           </div>
 
           <!-- Ações -->
-          ${canEdit ? `
+          ${isSup ? `
           <div class="card">
             <div class="card-header"><span class="card-title">⚙️ Ações</span></div>
             <div style="display:grid;gap:6px;">
@@ -369,6 +383,10 @@
     document.querySelectorAll('.btn-del-atpa').forEach(btn => {
       btn.addEventListener('click', () => deletarAtividadePA(btn.dataset.atId));
     });
+    // Técnico registra progresso na SUA atividade
+    document.querySelectorAll('.btn-registrar-atpa').forEach(btn => {
+      btn.addEventListener('click', () => abrirModalRegistroTecnico(p.id, btn.dataset.atId));
+    });
     document.querySelectorAll('.btn-mudar-status').forEach(btn => {
       btn.addEventListener('click', () => mudarStatusPlano(p.id, btn.dataset.status));
     });
@@ -380,7 +398,10 @@
     const pct   = parseInt(a.pct_concluida) || 0;
     const done  = a.status === 'Concluída';
     const late  = prazo.tipo === 'atraso' && !done;
-    const canEdit = session.perfil !== 'tecnico' || String(a.responsavel_id) === String(session.id);
+    // Técnico: pode editar APENAS atividades atribuídas a ele (para registrar progresso %)
+    // Supervisor/Admin: pode editar e excluir qualquer atividade
+    const canEditAt  = isSup;
+    const canFillAt  = !isSup && String(a.responsavel_id) === String(session.id);
 
     return `
     <div class="atpa-item">
@@ -401,10 +422,14 @@
         ${a.comentarios ? `<div style="font-size:.75rem;color:var(--gray-500);margin-top:4px;padding:5px 8px;background:var(--gray-50);border-radius:var(--radius-sm);border-left:2px solid var(--gray-300);">${a.comentarios}</div>` : ''}
         ${a.evidencias ? renderEvidenciasRow(a.evidencias) : ''}
       </div>
-      ${canEdit ? `<div class="atpa-actions">
-        <button class="btn btn-ghost btn-sm btn-icon btn-editar-atpa" data-at-id="${a.id}" title="Editar">✏️</button>
-        <button class="btn btn-ghost btn-sm btn-icon btn-del-atpa" data-at-id="${a.id}" title="Excluir" style="color:var(--danger);">🗑</button>
-      </div>` : ''}
+      <div class="atpa-actions">
+        ${canEditAt ? `
+          <button class="btn btn-ghost btn-sm btn-icon btn-editar-atpa" data-at-id="${a.id}" title="Editar">✏️</button>
+          <button class="btn btn-ghost btn-sm btn-icon btn-del-atpa" data-at-id="${a.id}" title="Excluir" style="color:var(--danger);">🗑</button>
+        ` : canFillAt ? `
+          <button class="btn btn-primary btn-sm btn-registrar-atpa" data-at-id="${a.id}">Registrar</button>
+        ` : ''}
+      </div>
     </div>`;
   }
 
@@ -542,11 +567,54 @@
   }
 
   // ──────────────────────────────────────────
+  // MODAL REGISTRO TÉCNICO (simplificado)
+  // ──────────────────────────────────────────
+  function abrirModalRegistroTecnico(planoId, atId) {
+    const at = atividadesPA.find(x => String(x.id) === String(atId));
+    if (!at) return;
+
+    // Reutiliza o modal de atividade mas com campos restritos
+    evidenciasTemp = [];
+
+    Utils.el('atpa-id').value          = at.id;
+    Utils.el('atpa-plano-id').value    = planoId;
+    Utils.el('atpa-desc').value        = at.descricao || '';
+    Utils.el('atpa-desc').readOnly     = true;
+    Utils.el('atpa-pct').value         = at.pct_concluida || 0;
+    Utils.el('atpa-inicio').value      = at.dt_inicio || '';
+    Utils.el('atpa-prazo').value       = at.prazo || '';
+    Utils.el('atpa-conclusao').value   = at.dt_conclusao || '';
+    Utils.el('atpa-status').value      = at.status || 'Não iniciada';
+    Utils.el('atpa-comentarios').value = at.comentarios || '';
+    Utils.el('atpa-fotos-grid').innerHTML = '';
+
+    // Bloquear campos que técnico não pode alterar
+    Utils.el('atpa-desc').style.background   = 'var(--gray-50)';
+    Utils.el('atpa-inicio').readOnly          = true;
+    Utils.el('atpa-prazo').readOnly           = true;
+
+    // Esconder campo de responsável (técnico não troca responsável)
+    const respGroup = Utils.el('atpa-resp')?.closest('.form-group');
+    if (respGroup) respGroup.style.display = 'none';
+
+    Utils.el('modal-atpa-title').textContent = '📋 Registrar Andamento';
+    Utils.openModal('modal-atividade-pa');
+  }
+
+  // ──────────────────────────────────────────
   // MODAL ATIVIDADE PA
   // ──────────────────────────────────────────
   function abrirModalAtividadePA(planoId, atId = null) {
     const at = atId ? atividadesPA.find(x => String(x.id) === String(atId)) : null;
     evidenciasTemp = [];
+
+    // Garantir campos desbloqueados para supervisor/admin
+    ['atpa-desc','atpa-inicio','atpa-prazo'].forEach(id => {
+      const el = Utils.el(id);
+      if (el) { el.readOnly = false; el.style.background = ''; }
+    });
+    const respGroup = Utils.el('atpa-resp')?.closest('.form-group');
+    if (respGroup) respGroup.style.display = '';
 
     // Responsáveis
     const sel = Utils.el('atpa-resp');
