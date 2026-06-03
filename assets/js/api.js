@@ -9,7 +9,7 @@ const API = (() => {
 
   // ── CONFIGURAÇÃO ──────────────────────────────────────────────
   const CONFIG = {
-    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzlnOcGQqxy1AyAluzVgQXoslQ0DNdPy6esBHJDkBviRFWUUfvVOnC3PD4dsG9Lj-XWCA/exec',
+    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyK1rJcdU45kgzGn17CxF7I1iZ9PLVBA4u0ijybCx_6yhxITbyC_8adXcJz38H4W2yedg/exec',
   };
   // ──────────────────────────────────────────────────────────────
 
@@ -123,6 +123,34 @@ const API = (() => {
 
     deleteMotivo: (id) =>
       request('deleteMotivo', { id }),
+
+    // ── Plano de Ação ──
+    getPlanos: () =>
+      request('getPlanos'),
+
+    savePlano: (dados) =>
+      request('savePlano', dados),
+
+    mudarStatusPlano: (dados) =>
+      request('mudarStatusPlano', dados),
+
+    getAtividadesPA: (filtros = {}) =>
+      request('getAtividadesPA', filtros),
+
+    saveAtividadePA: (dados) =>
+      request('saveAtividadePA', dados),
+
+    deletarAtividadePA: (id) =>
+      request('deletarAtividadePA', { id }),
+
+    getAprovacoesPA: () =>
+      request('getAprovacoesPA'),
+
+    registrarAprovacaoPA: (dados) =>
+      request('registrarAprovacaoPA', dados),
+
+    uploadFotoPA: (base64, mimeType, planoId) =>
+      request('uploadFotoPA', { base64, mimeType, planoId }),
 
     // ── Relatório ──
     getRelatorio: (filtros = {}) =>
