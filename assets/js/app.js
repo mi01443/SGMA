@@ -799,14 +799,13 @@
   let _allExecs = [];
 
   async function renderHistorico() {
-    const container = Utils.el('historico-list');
-    if (!container) return;
+    const wrap = Utils.el('historico-wrap');
+    if (!wrap) return;
 
-    // Build filters UI
     const eqOpts  = equipamentos.map(e => `<option value="${e.id}">${e.nome}</option>`).join('');
     const tecOpts = isSupervisor ? profissionais.map(p => `<option value="${p.id}">${p.nome}</option>`).join('') : '';
 
-    Utils.el('historico-wrap').innerHTML = `
+    wrap.innerHTML = `
       <!-- Filtros -->
       <div class="card mb-3" style="padding:.875rem 1rem;">
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end;">
