@@ -1,357 +1,431 @@
 /**
- * relatorio.js — Geração e visualização de relatório
+ * relatorio.js — Módulo de Relatório SGMA
  */
-
 (async () => {
-  const session = Auth.requireAuth(['admin', 'supervisor']);
+  const session = Auth.requireAuth(['admin','supervisor']);
   if (!session) return;
   Auth.initUserUI(session);
   Utils.initSidebar();
 
   let dadosRelatorio = null;
-  let filtros = { semanaId: '', dataInicio: '', dataFim: '', tecnicoId: '' };
+  let dadosPlanos    = null;
 
-  // Carregar selects de filtro
+  // ── Carregar selects ──
   async function initFiltros() {
     try {
-      const [semRes, profRes] = await Promise.all([API.getSemanas(), API.getProfissionais()]);
+      const [semRes, profRes] = await Promise.all([
+        API.getSemanas(),
+        API.getProfissionais(),
+      ]);
       const semanas = semRes.semanas || [];
       const profs   = profRes.profissionais || [];
 
       const semSel = Utils.el('filtro-semana');
       if (semSel) {
         semSel.innerHTML = '<option value="">Todas as semanas</option>' +
-          semanas.map(s => `<option value="${s.id}">${s.id} (${Utils.fmtDate(s.data_inicio)} — ${Utils.fmtDate(s.data_fim)})</option>`).join('');
+          semanas.map(s =>
+            '<option value="' + s.id + '">' + s.id +
+            ' (' + Utils.fmtDate(s.data_inicio) + ' — ' + Utils.fmtDate(s.data_fim) + ')</option>'
+          ).join('');
       }
+
       const profSel = Utils.el('filtro-tecnico');
       if (profSel) {
         profSel.innerHTML = '<option value="">Todos os técnicos</option>' +
-          profs.map(p => `<option value="${p.id}">${p.nome}</option>`).join('');
+          profs.map(p => '<option value="' + p.id + '">' + p.nome + '</option>').join('');
       }
-    } catch (e) { Utils.toast('Erro ao carregar filtros', 'error'); }
+    } catch(e) {
+      Utils.toast('Erro ao carregar filtros: ' + e.message, 'error');
+    }
   }
 
+  // ── Seções toggle ──
+  document.querySelectorAll('.rel-section-toggle').forEach(lbl => {
+    lbl.addEventListener('click', function() {
+      const cb = this.querySelector('input[type=checkbox]');
+      // toggle é feito pelo browser; só atualizar a classe
+      setTimeout(() => {
+        this.classList.toggle('active', cb.checked);
+      }, 0);
+    });
+  });
+
+  function secAtiva(id) {
+    const el = Utils.el(id);
+    return el ? el.checked : false;
+  }
+
+  // ── Eventos ──
   Utils.el('btn-gerar')?.addEventListener('click', gerarRelatorio);
   Utils.el('btn-pdf')?.addEventListener('click', gerarPDF);
   Utils.el('btn-whatsapp')?.addEventListener('click', compartilharWhatsApp);
 
+  // ══════════════════════════════════════════
+  // GERAR RELATÓRIO
+  // ══════════════════════════════════════════
   async function gerarRelatorio() {
-    filtros = {
-      semanaId:    Utils.el('filtro-semana')?.value  || '',
-      dataInicio:  Utils.el('filtro-inicio')?.value  || '',
-      dataFim:     Utils.el('filtro-fim')?.value     || '',
-      tecnicoId:   Utils.el('filtro-tecnico')?.value || '',
-    };
-
     const btn = Utils.el('btn-gerar');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Gerando...';
+    btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;margin-right:6px;"></span> Gerando...';
     Utils.showLoading('Buscando dados...');
 
+    const filtros = {
+      semanaId:   Utils.el('filtro-semana')?.value  || '',
+      dataInicio: Utils.el('filtro-inicio')?.value  || '',
+      dataFim:    Utils.el('filtro-fim')?.value     || '',
+      tecnicoId:  Utils.el('filtro-tecnico')?.value || '',
+    };
+
     try {
+      // Buscar dados de manutenção
       const res = await API.getRelatorio(filtros);
       dadosRelatorio = res;
-      renderRelatorio(res);
+
+      // Buscar planos de ação se seção ativa
+      dadosPlanos = null;
+      if (secAtiva('sec-planos')) {
+        try {
+          const paRes  = await API.getPlanos();
+          const atRes  = await API.getAtividadesPA();
+          dadosPlanos  = { planos: paRes.planos || [], atividades: atRes.atividades || [] };
+        } catch(e) { console.warn('Planos de ação não disponíveis:', e.message); }
+      }
+
+      renderRelatorio(res, filtros);
+
+      // Mostrar botões de ação
       const ra = Utils.el('rel-actions');
       if (ra) ra.style.display = 'flex';
-    } catch (e) {
+
+      Utils.el('rel-placeholder')?.classList.add('hidden');
+      Utils.el('relatorio-output')?.classList.remove('hidden');
+
+    } catch(e) {
       Utils.toast('Erro ao gerar relatório: ' + e.message, 'error');
     } finally {
       Utils.hideLoading();
       btn.disabled = false;
-      btn.innerHTML = '📊 Gerar Relatório';
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> Gerar Relatório';
     }
   }
 
-  function renderRelatorio(d) {
+  // ══════════════════════════════════════════
+  // RENDERIZAR RELATÓRIO
+  // ══════════════════════════════════════════
+  function renderRelatorio(d, filtros) {
     const container = Utils.el('relatorio-output');
     if (!container) return;
 
-    const pctExec = d.totalProgramadas ? Math.round(d.totalExecutadas / d.totalProgramadas * 100) : 0;
+    const pct = d.totalProgramadas ? Math.round((d.totalExecutadas||0) / d.totalProgramadas * 100) : 0;
+    const periodo = d.semana
+      ? 'Semana ' + d.semana.id + ' · ' + Utils.fmtDate(d.semana.data_inicio) + ' a ' + Utils.fmtDate(d.semana.data_fim)
+      : (Utils.fmtDate(d.dataInicio)||'—') + ' a ' + (Utils.fmtDate(d.dataFim)||'—');
 
-    container.innerHTML = `
-      <!-- Botões de ação no topo do relatório -->
-      <div style="display:flex;gap:10px;margin-bottom:1rem;flex-wrap:wrap;">
-        <button class="btn btn-danger" onclick="document.getElementById('btn-pdf').click()" style="gap:8px;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          Exportar PDF
-        </button>
-        <button class="btn btn-success" onclick="document.getElementById('btn-whatsapp').click()" style="gap:8px;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.121 1.533 5.848L.054 23.27l5.538-1.454A11.938 11.938 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.012-1.374l-.36-.213-3.288.863.878-3.207-.233-.37A9.818 9.818 0 012.182 12C2.182 6.571 6.571 2.182 12 2.182S21.818 6.571 21.818 12 17.429 21.818 12 21.818z"/></svg>
-          Enviar WhatsApp
-        </button>
-      </div>
-      <div id="rel-print-area">
-        <!-- Cabeçalho -->
-        <div class="card mb-3">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-            <div>
-              <h2 style="font-size:1.3rem;margin-bottom:4px;">Relatório de Manutenção</h2>
-              <div class="text-muted text-sm">
-                ${d.semana ? `Semana ${d.semana.id} — ` : ''}
-                ${Utils.fmtDate(d.dataInicio)} a ${Utils.fmtDate(d.dataFim)}
-              </div>
-              ${d.tecnico ? `<div class="text-sm mt-1">Técnico: <strong>${d.tecnico}</strong></div>` : ''}
-            </div>
-            <div style="text-align:right;">
-              <div class="text-xs text-muted">Gerado em</div>
-              <div class="text-sm fw-500">${Utils.fmtDateTime(new Date().toISOString())}</div>
-            </div>
-          </div>
-        </div>
+    let html = '<div id="rel-print-area">';
 
-        <!-- Resumo HH -->
-        <div class="card mb-3">
-          <div class="card-header"><span class="card-title">⏱ Resumo de Horas-Homem</span></div>
-          <div class="stat-cards" style="margin-bottom:0;">
-            <div class="stat-card">
-              <div class="stat-card-label">HH Disponível</div>
-              <div class="stat-card-value">${d.hhDisponivel || 0}h</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-card-label">HH Programado</div>
-              <div class="stat-card-value" style="color:var(--primary);">${d.hhProgramado || 0}h</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-card-label">HH Realizado</div>
-              <div class="stat-card-value" style="color:var(--success);">${d.hhRealizado || 0}h</div>
-              <div class="stat-card-sub">${d.hhDisponivel ? Math.round((d.hhRealizado||0)/d.hhDisponivel*100) : 0}% do disponível</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-card-label">% Execução</div>
-              <div class="stat-card-value" style="color:${pctExec >= 80 ? 'var(--success)' : pctExec >= 60 ? 'var(--warning)' : 'var(--danger)'};">${pctExec}%</div>
-              <div class="stat-card-sub">${d.totalExecutadas}/${d.totalProgramadas} atividades</div>
-            </div>
-          </div>
-        </div>
+    // ── Hero ──
+    html += '<div class="rel-hero">' +
+      '<div class="rel-hero-title">Relatório de Manutenção</div>' +
+      '<div class="rel-hero-sub">' + periodo + (d.tecnico ? ' · ' + d.tecnico : '') + ' · Gerado em ' + Utils.fmtDateTime(new Date().toISOString()) + '</div>' +
+      '<div class="rel-hero-kpis">' +
+        kpiHero(pct + '%', 'Taxa Execução', pct >= 80 ? '#22c55e' : pct >= 60 ? '#f59e0b' : '#ef4444') +
+        kpiHero((d.hhRealizado||0) + 'h', 'HH Realizado', '#60a5fa') +
+        kpiHero((d.totalExecutadas||0), 'Executadas', '#22c55e') +
+        kpiHero((d.naoRealizadas||[]).length, 'Não realizadas', '#ef4444') +
+        kpiHero((d.foraProgramacao||[]).length + (d.verEAgir||[]).length, 'Extra prog.', '#a78bfa') +
+      '</div>' +
+    '</div>';
 
-        <!-- Barra visual -->
-        <div class="card mb-3">
-          <div class="card-header"><span class="card-title">📊 Visão Geral</span></div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px;">
-            ${[
-              ['Programadas executadas', d.executadasProgramadas?.length || 0, 'var(--success)'],
-              ['Não realizadas',         d.naoRealizadas?.length || 0,         'var(--danger)'],
-              ['Fora de programação',    d.foraProgramacao?.length || 0,       '#0891b2'],
-              ['Ver e Agir',             d.verEAgir?.length || 0,              '#7c3aed'],
-            ].map(([label, val, cor]) => `
-              <div style="text-align:center;padding:14px;background:var(--gray-50);border-radius:var(--radius);border:1px solid var(--gray-200);">
-                <div style="font-size:1.8rem;font-weight:600;color:${cor};">${val}</div>
-                <div style="font-size:.75rem;color:var(--gray-500);margin-top:2px;">${label}</div>
-              </div>`).join('')}
-          </div>
-          <div class="hh-bar-wrap">
-            <div class="hh-labels"><span>Programado ${d.hhProgramado}h</span><span>Realizado ${d.hhRealizado}h</span></div>
-            <div class="hh-bar-track" style="height:14px;">
-              <div class="hh-bar-prog" style="width:${d.hhDisponivel ? Math.min(100,d.hhProgramado/d.hhDisponivel*100) : 0}%"></div>
-              <div class="hh-bar-real" style="width:${d.hhDisponivel ? Math.min(100,(d.hhRealizado||0)/d.hhDisponivel*100) : 0}%"></div>
-            </div>
-          </div>
-        </div>
+    // Botões de ação dentro do relatório
+    html += '<div class="rel-action-bar">' +
+      '<button class="btn btn-danger" onclick="document.getElementById(\'btn-pdf\').click()">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
+        'Exportar PDF' +
+      '</button>' +
+      '<button class="btn btn-success" onclick="document.getElementById(\'btn-whatsapp\').click()">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.121 1.533 5.848L.054 23.27l5.538-1.454A11.938 11.938 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.012-1.374l-.36-.213-3.288.863.878-3.207-.233-.37A9.818 9.818 0 012.182 12C2.182 6.571 6.571 2.182 12 2.182S21.818 6.571 21.818 12 17.429 21.818 12 21.818z"/></svg>' +
+        'Enviar WhatsApp' +
+      '</button>' +
+    '</div>';
 
-        <!-- Atividades executadas (programadas) -->
-        ${renderSecao('✅ Atividades Programadas — Executadas', d.executadasProgramadas, true)}
+    // ── Resumo HH ──
+    if (secAtiva('sec-resumo')) {
+      const hhProg = parseFloat(d.hhProgramado||0);
+      const hhReal = parseFloat(d.hhRealizado||0);
+      const hhDisp = parseFloat(d.hhDisponivel||0);
+      const pctProg = hhDisp ? Math.min(100, Math.round(hhProg/hhDisp*100)) : 0;
+      const pctReal = hhDisp ? Math.min(100, Math.round(hhReal/hhDisp*100)) : 0;
 
-        <!-- Atividades não realizadas -->
-        ${renderSecaoNaoRealizadas(d.naoRealizadas)}
-
-        <!-- Fora de programação -->
-        ${renderSecao('🔧 Fora de Programação', d.foraProgramacao, true)}
-
-        <!-- Ver e Agir -->
-        ${renderSecao('👁 Ver e Agir', d.verEAgir, true)}
-
-        <!-- Análise de motivos -->
-        ${renderAnaliseMotivoS(d.analiseMOtivos)}
-      </div>
-    </div>
-    `;
-  }
-
-  function renderSecao(titulo, items, comFotos = false) {
-    if (!items || !items.length) return '';
-    return `
-      <div class="card mb-3">
-        <div class="card-header"><span class="card-title">${titulo}</span><span class="badge badge-gray">${items.length}</span></div>
-        ${items.map(item => `
-          <div style="padding:12px 0;border-bottom:1px solid var(--gray-100);">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-              <div>
-                <div class="fw-500">${item.equipamento_nome || '—'} <span class="text-xs text-muted">${item.equip_tag || ''}</span></div>
-                <div class="text-sm text-muted">${item.descricao}</div>
-                <div class="text-xs text-muted mt-1">
-                  👤 ${item.tecnico_nome || '—'} · 📅 ${Utils.fmtDate(item.data_programada)} · ⏱ ${Utils.fmtHH(item.hh_real || item.hh_estimado)}
-                </div>
-                ${item.obs ? `<div class="text-sm mt-1" style="background:var(--gray-50);padding:6px 10px;border-radius:var(--radius-sm);border-left:3px solid var(--gray-300);">${item.obs}</div>` : ''}
-              </div>
-              ${Utils.statusBadge(item.status)}
-            </div>
-            ${comFotos && (item.fotos_antes?.length || item.fotos_depois?.length) ? `
-              <div style="margin-top:10px;display:flex;gap:16px;flex-wrap:wrap;">
-                ${item.fotos_antes?.length ? `
-                  <div>
-                    <div class="text-xs text-muted mb-1">Antes:</div>
-                    <div style="display:flex;gap:6px;">
-                      ${item.fotos_antes.map(url => `<img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--gray-200);">`).join('')}
-                    </div>
-                  </div>` : ''}
-                ${item.fotos_depois?.length ? `
-                  <div>
-                    <div class="text-xs text-muted mb-1">Depois:</div>
-                    <div style="display:flex;gap:6px;">
-                      ${item.fotos_depois.map(url => `<img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--gray-200);">`).join('')}
-                    </div>
-                  </div>` : ''}
-              </div>` : ''}
-          </div>`).join('')}
-      </div>`;
-  }
-
-  function renderSecaoNaoRealizadas(items) {
-    if (!items || !items.length) return '';
-    return `
-      <div class="card mb-3">
-        <div class="card-header"><span class="card-title">❌ Não Realizadas</span><span class="badge badge-danger">${items.length}</span></div>
-        ${items.map(item => `
-          <div style="padding:12px 0;border-bottom:1px solid var(--gray-100);">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-              <div>
-                <div class="fw-500">${item.equipamento_nome || '—'} <span class="text-xs text-muted">${item.equip_tag || ''}</span></div>
-                <div class="text-sm text-muted">${item.descricao}</div>
-                <div class="text-xs text-muted mt-1">👤 ${item.tecnico_nome || '—'} · 📅 ${Utils.fmtDate(item.data_programada)}</div>
-                <div style="margin-top:8px;display:inline-flex;align-items:center;gap:6px;background:var(--danger-light);padding:5px 10px;border-radius:99px;">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  <span style="font-size:.78rem;font-weight:600;color:var(--danger);">${item.motivo_desc || 'Sem motivo informado'}</span>
-                  <span class="badge badge-danger" style="font-size:.65rem;">${item.motivo_categoria || ''}</span>
-                </div>
-                ${item.obs ? `<div class="text-sm mt-2">${item.obs}</div>` : ''}
-              </div>
-              ${Utils.statusBadge(item.status)}
-            </div>
-          </div>`).join('')}
-      </div>`;
-  }
-
-  function renderAnaliseMotivoS(analise) {
-    if (!analise || !analise.length) return '';
-    const max = analise[0].quantidade;
-    return `
-      <div class="card mb-3">
-        <div class="card-header"><span class="card-title">📈 Análise de Impacto — Motivos de Não Execução</span></div>
-        ${analise.map(m => `
-          <div style="padding:10px 0;border-bottom:1px solid var(--gray-100);">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-              <div>
-                <span class="fw-500">${m.descricao}</span>
-                <span class="badge badge-gray" style="margin-left:6px;">${m.categoria}</span>
-              </div>
-              <div style="text-align:right;">
-                <span class="fw-500" style="color:var(--danger);">${m.quantidade}x</span>
-                <span class="text-xs text-muted"> · ${Utils.fmtHH(m.hh_impacto)} de impacto</span>
-              </div>
-            </div>
-            <div class="progress">
-              <div class="progress-bar" style="width:${Math.round(m.quantidade/max*100)}%;background:var(--danger);"></div>
-            </div>
-          </div>`).join('')}
-      </div>`;
-  }
-
-  // ── PDF ──
-  async function gerarPDF() {
-    if (!dadosRelatorio) { Utils.toast('Gere o relatório primeiro', 'error'); return; }
-    const btn = Utils.el('btn-pdf');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Gerando...';
-
-    // Tentar via Apps Script primeiro
-    try {
-      const res = await API.gerarPDF(filtros);
-      if (res.url) {
-        window.open(res.url, '_blank');
-        Utils.toast('PDF gerado!', 'success');
-        return;
-      }
-    } catch (e) {
-      console.warn('Apps Script PDF falhou, usando impressão do browser:', e.message);
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '📄 Exportar PDF';
+      html += relSecao('📊 Resumo de Horas-Homem',
+        '<div class="rel-kpi-grid">' +
+          '<div class="rel-kpi"><div class="rel-kpi-num">' + hhDisp + 'h</div><div class="rel-kpi-lbl">Disponível</div></div>' +
+          '<div class="rel-kpi info"><div class="rel-kpi-num">' + hhProg + 'h</div><div class="rel-kpi-lbl">Programado</div></div>' +
+          '<div class="rel-kpi success"><div class="rel-kpi-num">' + hhReal + 'h</div><div class="rel-kpi-lbl">Realizado</div></div>' +
+          '<div class="rel-kpi ' + (pct >= 80 ? 'success' : pct >= 60 ? 'warning' : 'danger') + '"><div class="rel-kpi-num">' + pct + '%</div><div class="rel-kpi-lbl">Taxa execução</div></div>' +
+        '</div>' +
+        '<div class="card" style="margin-top:0;">' +
+          '<div style="margin-bottom:8px;"><span style="font-size:.75rem;color:var(--gray-500);">HH Programado (' + pctProg + '% do disponível)</span>' +
+          '<div class="rel-hh-bar"><div class="rel-hh-prog" style="width:' + pctProg + '%;background:var(--primary);opacity:.5;"></div></div></div>' +
+          '<div><span style="font-size:.75rem;color:var(--gray-500);">HH Realizado (' + pctReal + '% do disponível)</span>' +
+          '<div class="rel-hh-bar"><div class="rel-hh-prog" style="width:' + pctReal + '%;background:var(--success);"></div></div></div>' +
+        '</div>'
+      );
     }
 
-    // Fallback: abrir janela de impressão do browser (funciona sempre)
-    const printWin = window.open('', '_blank');
-    const printContent = document.getElementById('rel-print-area')?.innerHTML || '';
-    if (!printContent) { Utils.toast('Gere o relatório antes de exportar', 'error'); return; }
+    // ── Executadas ──
+    if (secAtiva('sec-executadas') && (d.executadasProgramadas||[]).length) {
+      html += relSecao('✅ Atividades Executadas', tabelaAtividades(d.executadasProgramadas, false), (d.executadasProgramadas||[]).length);
+    }
 
-    printWin.document.write(`<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <title>Relatório de Manutenção — SGMA</title>
-  <style>
-    * { box-sizing:border-box; margin:0; padding:0; }
-    body { font-family: Arial, sans-serif; font-size: 12px; color: #111; padding: 24px; }
-    h1,h2 { font-size:16px; margin-bottom:8px; }
-    h2 { font-size:13px; color:#374151; border-bottom:1px solid #e5e7eb; padding-bottom:4px; margin-top:16px; }
-    .card { border:1px solid #e5e7eb; border-radius:8px; padding:12px; margin-bottom:12px; }
-    .badge { display:inline-block; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:600; }
-    table { width:100%; border-collapse:collapse; font-size:11px; margin-bottom:8px; }
-    th { background:#f3f4f6; padding:6px 10px; text-align:left; font-size:10px; }
-    td { padding:8px 10px; border-bottom:1px solid #f3f4f6; }
-    .stat { display:inline-block; margin-right:20px; margin-bottom:12px; }
-    .stat-num { font-size:20px; font-weight:700; }
-    .stat-lbl { font-size:10px; color:#6b7280; }
-    img { max-width:80px; max-height:80px; border-radius:4px; }
-    @media print { body { padding:12px; } }
-  </style>
-</head>
-<body>
-  <h1>Relatório de Manutenção — SGMA</h1>
-  ${printContent}
-  <script>window.onload = () => { window.print(); }<\/script>
-</body>
-</html>`);
-    printWin.document.close();
-    Utils.toast('Janela de impressão aberta — use "Salvar como PDF"', 'info');
+    // ── Não realizadas ──
+    if (secAtiva('sec-nao-realizadas') && (d.naoRealizadas||[]).length) {
+      html += relSecao('❌ Não Realizadas', tabelaAtividades(d.naoRealizadas, true), (d.naoRealizadas||[]).length);
+    }
+
+    // ── Fora de programação ──
+    if (secAtiva('sec-fora-prog') && (d.foraProgramacao||[]).length) {
+      html += relSecao('🔧 Fora de Programação', tabelaAtividades(d.foraProgramacao, false), (d.foraProgramacao||[]).length);
+    }
+
+    // ── Ver e Agir ──
+    if (secAtiva('sec-ver-agir') && (d.verEAgir||[]).length) {
+      html += relSecao('👁 Ver e Agir', tabelaAtividades(d.verEAgir, false), (d.verEAgir||[]).length);
+    }
+
+    // ── Análise de motivos ──
+    if (secAtiva('sec-motivos') && (d.analiseMOtivos||[]).length) {
+      const max = d.analiseMOtivos[0].quantidade;
+      html += relSecao('📈 Análise de Motivos de Não Execução',
+        d.analiseMOtivos.map(m =>
+          '<div class="rel-motivo-bar">' +
+            '<div style="min-width:200px;">' +
+              '<div style="font-size:.8rem;font-weight:600;">' + m.descricao + '</div>' +
+              '<div style="font-size:.68rem;color:var(--gray-400);">' + m.categoria + '</div>' +
+            '</div>' +
+            '<div style="flex:1;">' +
+              '<div class="rel-hh-bar" style="height:10px;">' +
+                '<div class="rel-motivo-fill" style="width:' + Math.round(m.quantidade/max*100) + '%;"></div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="rel-motivo-num">' + m.quantidade + 'x · ' + parseFloat(m.hh_impacto||0).toFixed(1) + 'h</div>' +
+          '</div>'
+        ).join('')
+      );
+    }
+
+    // ── Planos de Ação ──
+    if (secAtiva('sec-planos') && dadosPlanos) {
+      const { planos, atividades } = dadosPlanos;
+      const statusOrder = ['Em andamento','Aguardando aprovação','Aberto','Concluído','Cancelado'];
+      const planosSorted = [...planos].sort((a,b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status));
+
+      html += relSecao('🗂 Planos de Ação',
+        '<div class="rel-kpi-grid" style="margin-bottom:1rem;">' +
+          '<div class="rel-kpi"><div class="rel-kpi-num">' + planos.length + '</div><div class="rel-kpi-lbl">Total</div></div>' +
+          '<div class="rel-kpi info"><div class="rel-kpi-num">' + planos.filter(p=>p.status==='Em andamento').length + '</div><div class="rel-kpi-lbl">Em andamento</div></div>' +
+          '<div class="rel-kpi warning"><div class="rel-kpi-num">' + planos.filter(p=>p.status==='Aguardando aprovação').length + '</div><div class="rel-kpi-lbl">Ag. aprovação</div></div>' +
+          '<div class="rel-kpi success"><div class="rel-kpi-num">' + planos.filter(p=>p.status==='Concluído').length + '</div><div class="rel-kpi-lbl">Concluídos</div></div>' +
+        '</div>' +
+        planosSorted.map(p => {
+          const ats  = atividades.filter(a => String(a.plano_id) === String(p.id));
+          const pct  = ats.length ? Math.round(ats.reduce((s,a)=>s+(parseInt(a.pct_concluida)||0),0)/ats.length) : 0;
+          const dias = p.prazo ? Math.ceil((new Date(p.prazo) - new Date())/86400000) : null;
+          const prazoLabel = !dias && dias !== 0 ? '' : dias < 0 ? '🔴 ' + Math.abs(dias) + 'd atraso' : dias <= 3 ? '🟡 ' + dias + 'd' : '🟢 ' + dias + 'd';
+          const borderColor = p.status==='Concluído'?'var(--success)':p.status==='Cancelado'?'var(--gray-300)':p.status==='Aguardando aprovação'?'var(--warning)':'var(--primary)';
+          return '<div class="rel-plano-card" style="border-left-color:' + borderColor + ';">' +
+            '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">' +
+              '<div>' +
+                '<div style="font-size:.62rem;font-family:monospace;color:var(--gray-400);margin-bottom:2px;">' + p.id + '</div>' +
+                '<div class="rel-plano-titulo">' + (p.titulo||'—') + '</div>' +
+              '</div>' +
+              '<div style="display:flex;gap:6px;flex-shrink:0;">' +
+                '<span class="badge ' + (p.status==='Concluído'?'badge-success':p.status==='Em andamento'?'badge-primary':p.status==='Aguardando aprovação'?'badge-warning':'badge-gray') + '">' + p.status + '</span>' +
+                (prazoLabel ? '<span class="badge ' + (dias<0?'badge-danger':dias<=3?'badge-warning':'badge-success') + '">' + prazoLabel + '</span>' : '') +
+              '</div>' +
+            '</div>' +
+            '<div class="rel-plano-meta" style="margin-top:6px;">' +
+              '<span>📂 ' + (p.origem||'—') + '</span>' +
+              '<span>🏭 ' + (p.setor||'—') + '</span>' +
+              '<span>📅 Prazo: ' + Utils.fmtDate(p.prazo) + '</span>' +
+              '<span>📋 ' + ats.length + ' atividade' + (ats.length!==1?'s':'') + '</span>' +
+            '</div>' +
+            '<div style="margin-top:8px;">' +
+              '<div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--gray-400);margin-bottom:3px;"><span>Progresso</span><span class="rel-plano-pct">' + pct + '%</span></div>' +
+              '<div style="height:6px;background:var(--gray-100);border-radius:99px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:' + (pct>=100?'var(--success)':'var(--primary)') + ';border-radius:99px;"></div></div>' +
+            '</div>' +
+          '</div>';
+        }).join('')
+      , planos.length);
+    }
+
+    html += '</div>'; // rel-print-area
+    container.innerHTML = html;
   }
 
-  // ── WhatsApp ──
+  // ── Helpers de renderização ──
+  function relSecao(titulo, conteudo, count) {
+    return '<div class="rel-section card">' +
+      '<div class="rel-section-header">' +
+        '<h2>' + titulo + '</h2>' +
+        (count !== undefined ? '<span class="rel-badge">' + count + '</span>' : '') +
+      '</div>' +
+      conteudo +
+    '</div>';
+  }
+
+  function kpiHero(val, label, color) {
+    return '<div class="rel-hero-kpi">' +
+      '<div class="rel-hero-kpi-num" style="color:' + color + ';">' + val + '</div>' +
+      '<div class="rel-hero-kpi-lbl">' + label + '</div>' +
+    '</div>';
+  }
+
+  function tabelaAtividades(lista, comMotivo) {
+    if (!lista || !lista.length) return '<p class="text-muted text-sm">Nenhuma atividade.</p>';
+    return '<table class="rel-table">' +
+      '<thead><tr>' +
+        '<th>Equipamento</th>' +
+        '<th>Atividade</th>' +
+        '<th>Técnico</th>' +
+        '<th>Data</th>' +
+        '<th>HH</th>' +
+        (comMotivo ? '<th>Motivo</th>' : '<th>Status</th>') +
+      '</tr></thead>' +
+      '<tbody>' +
+      lista.map(a =>
+        '<tr>' +
+          '<td><strong>' + (a.equipamento_nome||'—') + '</strong><br><span style="font-size:.68rem;color:var(--gray-400);">' + (a.equip_tag||'') + '</span></td>' +
+          '<td>' + (a.descricao||'—') + (a.obs ? '<div class="rel-at-obs">' + a.obs + '</div>' : '') + '</td>' +
+          '<td>' + (a.tecnico_nome||'—') + '</td>' +
+          '<td style="white-space:nowrap;">' + Utils.fmtDate(a.data_programada) + '</td>' +
+          '<td style="white-space:nowrap;">' + Utils.fmtHH(a.hh_real||a.hh_estimado) + '</td>' +
+          (comMotivo
+            ? '<td><span class="rel-at-motivo">⚠ ' + (a.motivo_desc||'Sem motivo') + '</span><br><span style="font-size:.68rem;color:var(--gray-400);">' + (a.motivo_categoria||'') + '</span></td>'
+            : '<td>' + Utils.statusBadge(a.status) + '</td>') +
+        '</tr>'
+      ).join('') +
+      '</tbody></table>';
+  }
+
+  // ══════════════════════════════════════════
+  // PDF — IMPRESSÃO DO BROWSER
+  // ══════════════════════════════════════════
+  async function gerarPDF() {
+    if (!dadosRelatorio) { Utils.toast('Gere o relatório primeiro', 'error'); return; }
+
+    const btn = Utils.el('btn-pdf');
+    btn.disabled = true;
+    btn.textContent = 'Abrindo...';
+
+    const printContent = Utils.el('rel-print-area')?.innerHTML || '';
+
+    const printWin = window.open('', '_blank', 'width=900,height=700');
+    printWin.document.write('<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+      '<title>Relatório SGMA</title><style>' +
+      'body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:20px;margin:0;}' +
+      'h2{font-size:14px;border-bottom:2px solid #1d4ed8;padding-bottom:4px;margin-top:16px;margin-bottom:10px;}' +
+      '.rel-hero{background:#1e293b;color:#fff;padding:16px;border-radius:8px;margin-bottom:16px;}' +
+      '.rel-hero-title{font-size:18px;font-weight:bold;margin-bottom:4px;}' +
+      '.rel-hero-sub{font-size:11px;color:#94a3b8;margin-bottom:12px;}' +
+      '.rel-hero-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}' +
+      '.rel-hero-kpi{background:rgba(255,255,255,.1);padding:8px;border-radius:6px;text-align:center;}' +
+      '.rel-hero-kpi-num{font-size:20px;font-weight:bold;}' +
+      '.rel-hero-kpi-lbl{font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;}' +
+      '.card{border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:12px;}' +
+      '.rel-section-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #1d4ed8;}' +
+      '.rel-section-header h2{font-size:13px;margin:0;border:none;padding:0;}' +
+      '.rel-badge{background:#1d4ed8;color:#fff;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:bold;}' +
+      '.rel-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;}' +
+      '.rel-kpi{border:1px solid #e2e8f0;border-radius:6px;padding:8px;text-align:center;border-top:3px solid #1d4ed8;}' +
+      '.rel-kpi-num{font-size:18px;font-weight:bold;}' +
+      '.rel-kpi-lbl{font-size:9px;color:#64748b;text-transform:uppercase;}' +
+      '.rel-kpi.success{border-top-color:#059669;}.rel-kpi.success .rel-kpi-num{color:#059669;}' +
+      '.rel-kpi.danger{border-top-color:#dc2626;}.rel-kpi.danger .rel-kpi-num{color:#dc2626;}' +
+      '.rel-kpi.warning{border-top-color:#d97706;}.rel-kpi.warning .rel-kpi-num{color:#d97706;}' +
+      '.rel-kpi.info{border-top-color:#0284c7;}.rel-kpi.info .rel-kpi-num{color:#0284c7;}' +
+      '.rel-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px;}' +
+      '.rel-table th{background:#1e293b;color:#fff;padding:6px 10px;text-align:left;font-size:9px;text-transform:uppercase;}' +
+      '.rel-table td{padding:6px 10px;border-bottom:1px solid #f1f5f9;vertical-align:top;}' +
+      '.rel-hh-bar{height:10px;background:#f1f5f9;border-radius:99px;overflow:hidden;margin:4px 0;}' +
+      '.rel-hh-prog{height:100%;border-radius:99px;}' +
+      '.rel-motivo-bar{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;}' +
+      '.rel-motivo-fill{height:8px;border-radius:99px;background:#dc2626;}' +
+      '.rel-motivo-num{font-size:10px;font-weight:bold;color:#dc2626;white-space:nowrap;}' +
+      '.rel-at-obs{font-size:10px;background:#f8fafc;padding:4px 8px;border-left:2px solid #cbd5e1;margin-top:4px;}' +
+      '.rel-at-motivo{display:inline-flex;align-items:center;gap:4px;background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:bold;}' +
+      '.rel-plano-card{border:1px solid #e2e8f0;border-radius:6px;padding:8px;margin-bottom:6px;border-left:4px solid #1d4ed8;}' +
+      '.rel-plano-titulo{font-weight:bold;font-size:11px;}' +
+      '.rel-plano-meta{font-size:10px;color:#64748b;display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;}' +
+      '.badge{display:inline-block;padding:1px 7px;border-radius:99px;font-size:9px;font-weight:bold;}' +
+      '.badge-success{background:#ecfdf5;color:#059669;}' +
+      '.badge-danger{background:#fef2f2;color:#dc2626;}' +
+      '.badge-warning{background:#fffbeb;color:#d97706;}' +
+      '.badge-primary{background:#eff6ff;color:#1d4ed8;}' +
+      '.badge-gray{background:#f1f5f9;color:#475569;}' +
+      '.rel-action-bar{display:none;}' +
+      '@media print{body{padding:10px;}}' +
+      '</style></head><body>' + printContent +
+      '<script>window.onload=function(){window.print();window.onafterprint=function(){window.close();};}<\/script>' +
+      '</body></html>');
+    printWin.document.close();
+    Utils.toast('Janela de impressão aberta — use "Salvar como PDF"', 'info');
+
+    btn.disabled = false;
+    btn.textContent = '📄 PDF';
+  }
+
+  // ══════════════════════════════════════════
+  // WHATSAPP
+  // ══════════════════════════════════════════
   function compartilharWhatsApp() {
     if (!dadosRelatorio) { Utils.toast('Gere o relatório primeiro', 'error'); return; }
-    const d   = dadosRelatorio;
+    const d = dadosRelatorio;
     const pct = d.totalProgramadas ? Math.round((d.totalExecutadas||0) / d.totalProgramadas * 100) : 0;
 
     const periodo = d.semana
       ? 'Semana ' + d.semana.id + ' (' + Utils.fmtDate(d.semana.data_inicio) + ' a ' + Utils.fmtDate(d.semana.data_fim) + ')'
       : (Utils.fmtDate(d.dataInicio)||'—') + ' a ' + (Utils.fmtDate(d.dataFim)||'—');
 
-    const naoReal = d.naoRealizadas || [];
+    // Motivos (top 3)
     let motivosText = '';
-    if (d.analiseMOtivos && d.analiseMOtivos.length) {
-      motivosText = '\n\n*Principais motivos de não execução:*\n' +
+    if ((d.analiseMOtivos||[]).length) {
+      motivosText = '\n\n*Principais motivos:*\n' +
         d.analiseMOtivos.slice(0,3).map(function(m,i){
           return (i+1) + '. ' + m.descricao + ' (' + m.quantidade + 'x)';
         }).join('\n');
     }
+
+    // Não realizadas (top 5)
+    const naoReal = d.naoRealizadas || [];
     let naoRealText = '';
     if (naoReal.length) {
-      naoRealText = '\n\n*Não realizadas:*\n' +
+      naoRealText = '\n\n*Não realizadas (' + naoReal.length + '):*\n' +
         naoReal.slice(0,5).map(function(a){
-          return '• ' + (a.equipamento_nome||'—') + ' — ' + (a.descricao||'').slice(0,40);
+          return '• ' + (a.equipamento_nome||'—') + ': ' + (a.descricao||'').slice(0,35) +
+                 (a.motivo_desc ? ' [' + a.motivo_desc + ']' : '');
         }).join('\n') +
-        (naoReal.length > 5 ? '\n  ...e mais ' + (naoReal.length-5) : '');
+        (naoReal.length > 5 ? '\n  + ' + (naoReal.length-5) + ' outras' : '');
     }
 
-    const msg = [
+    // Planos de ação
+    let planosText = '';
+    if (dadosPlanos && dadosPlanos.planos.length) {
+      const p = dadosPlanos.planos;
+      planosText = '\n\n*Planos de Ação:*\n' +
+        '• Em andamento: ' + p.filter(function(x){return x.status==='Em andamento';}).length + '\n' +
+        '• Ag. aprovação: ' + p.filter(function(x){return x.status==='Aguardando aprovação';}).length + '\n' +
+        '• Concluídos: ' + p.filter(function(x){return x.status==='Concluído';}).length;
+    }
+
+    const linhas = [
       '🔧 *SGMA — Relatório de Manutenção*',
       '📅 ' + periodo,
-      d.tecnico ? '👤 ' + d.tecnico : null,
+      d.tecnico ? '👤 ' + d.tecnico : '',
       '',
       '⏱ *Horas-Homem*',
-      '• Disponível: ' + (d.hhDisponivel||0) + 'h',
-      '• Programado: ' + (d.hhProgramado||0) + 'h',
-      '• Realizado:  ' + (d.hhRealizado||0) + 'h',
+      '• Disponível:  ' + (d.hhDisponivel||0) + 'h',
+      '• Programado:  ' + (d.hhProgramado||0) + 'h',
+      '• Realizado:   ' + (d.hhRealizado||0) + 'h',
       '',
       '📊 *Taxa de execução: ' + pct + '%*',
       '✅ Executadas:     ' + ((d.executadasProgramadas||[]).length),
@@ -360,19 +434,16 @@
       '👁 Ver e Agir:    ' + ((d.verEAgir||[]).length),
       motivosText,
       naoRealText,
-    ].filter(function(l){ return l !== null && l !== undefined; }).join('\n');
+      planosText,
+    ].filter(function(l){ return l !== null && l !== undefined && l !== ''; });
 
+    const msg = linhas.join('\n');
     const msgFinal = msg.length > 3800 ? msg.slice(0,3800) + '\n...' : msg;
     window.open('https://wa.me/?text=' + encodeURIComponent(msgFinal), '_blank');
     Utils.toast('WhatsApp aberto!', 'success');
   }
 
+  // ── Init ──
   await initFiltros();
-
-  // ── Auto-refresh dos selects de filtro a cada 30s ──
-  // (Relatório não regera automaticamente, só os selects de semana/técnico)
-  setInterval(async () => {
-    try { await initFiltros(); } catch {}
-  }, 30000);
 
 })();
