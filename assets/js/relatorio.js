@@ -262,46 +262,109 @@
     if (!dadosRelatorio) { Utils.toast('Gere o relatório primeiro', 'error'); return; }
     const btn = Utils.el('btn-pdf');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Gerando PDF...';
+    btn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Gerando...';
+
+    // Tentar via Apps Script primeiro
     try {
       const res = await API.gerarPDF(filtros);
       if (res.url) {
         window.open(res.url, '_blank');
-        Utils.toast('PDF gerado! Abrindo...', 'success');
+        Utils.toast('PDF gerado!', 'success');
+        return;
       }
     } catch (e) {
-      Utils.toast('Erro ao gerar PDF: ' + e.message, 'error');
+      console.warn('Apps Script PDF falhou, usando impressão do browser:', e.message);
     } finally {
       btn.disabled = false;
       btn.innerHTML = '📄 Exportar PDF';
     }
+
+    // Fallback: abrir janela de impressão do browser (funciona sempre)
+    const printWin = window.open('', '_blank');
+    const printContent = document.getElementById('rel-print-area')?.innerHTML || '';
+    if (!printContent) { Utils.toast('Gere o relatório antes de exportar', 'error'); return; }
+
+    printWin.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Relatório de Manutenção — SGMA</title>
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #111; padding: 24px; }
+    h1,h2 { font-size:16px; margin-bottom:8px; }
+    h2 { font-size:13px; color:#374151; border-bottom:1px solid #e5e7eb; padding-bottom:4px; margin-top:16px; }
+    .card { border:1px solid #e5e7eb; border-radius:8px; padding:12px; margin-bottom:12px; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:600; }
+    table { width:100%; border-collapse:collapse; font-size:11px; margin-bottom:8px; }
+    th { background:#f3f4f6; padding:6px 10px; text-align:left; font-size:10px; }
+    td { padding:8px 10px; border-bottom:1px solid #f3f4f6; }
+    .stat { display:inline-block; margin-right:20px; margin-bottom:12px; }
+    .stat-num { font-size:20px; font-weight:700; }
+    .stat-lbl { font-size:10px; color:#6b7280; }
+    img { max-width:80px; max-height:80px; border-radius:4px; }
+    @media print { body { padding:12px; } }
+  </style>
+</head>
+<body>
+  <h1>Relatório de Manutenção — SGMA</h1>
+  ${printContent}
+  <script>window.onload = () => { window.print(); }<\/script>
+</body>
+</html>`);
+    printWin.document.close();
+    Utils.toast('Janela de impressão aberta — use "Salvar como PDF"', 'info');
   }
 
   // ── WhatsApp ──
   function compartilharWhatsApp() {
     if (!dadosRelatorio) { Utils.toast('Gere o relatório primeiro', 'error'); return; }
-    const d = dadosRelatorio;
-    const pct = d.totalProgramadas ? Math.round(d.totalExecutadas / d.totalProgramadas * 100) : 0;
+    const d   = dadosRelatorio;
+    const pct = d.totalProgramadas ? Math.round((d.totalExecutadas||0) / d.totalProgramadas * 100) : 0;
+
+    const periodo = d.semana
+      ? 'Semana ' + d.semana.id + ' (' + Utils.fmtDate(d.semana.data_inicio) + ' a ' + Utils.fmtDate(d.semana.data_fim) + ')'
+      : (Utils.fmtDate(d.dataInicio)||'—') + ' a ' + (Utils.fmtDate(d.dataFim)||'—');
+
+    const naoReal = d.naoRealizadas || [];
+    let motivosText = '';
+    if (d.analiseMOtivos && d.analiseMOtivos.length) {
+      motivosText = '\n\n*Principais motivos de não execução:*\n' +
+        d.analiseMOtivos.slice(0,3).map(function(m,i){
+          return (i+1) + '. ' + m.descricao + ' (' + m.quantidade + 'x)';
+        }).join('\n');
+    }
+    let naoRealText = '';
+    if (naoReal.length) {
+      naoRealText = '\n\n*Não realizadas:*\n' +
+        naoReal.slice(0,5).map(function(a){
+          return '• ' + (a.equipamento_nome||'—') + ' — ' + (a.descricao||'').slice(0,40);
+        }).join('\n') +
+        (naoReal.length > 5 ? '\n  ...e mais ' + (naoReal.length-5) : '');
+    }
 
     const msg = [
-      `📋 *Relatório de Manutenção*`,
-      `📅 ${Utils.fmtDate(d.dataInicio)} a ${Utils.fmtDate(d.dataFim)}`,
-      ``,
-      `⏱ *Horas-Homem*`,
-      `• Disponível: ${d.hhDisponivel}h`,
-      `• Programado: ${d.hhProgramado}h`,
-      `• Realizado: ${d.hhRealizado}h`,
-      ``,
-      `📊 *Execução: ${pct}%* (${d.totalExecutadas}/${d.totalProgramadas})`,
-      ``,
-      `✅ Executadas: ${d.executadasProgramadas?.length || 0}`,
-      `❌ Não realizadas: ${d.naoRealizadas?.length || 0}`,
-      `🔧 Fora de programação: ${d.foraProgramacao?.length || 0}`,
-      `👁 Ver e Agir: ${d.verEAgir?.length || 0}`,
-      d.pdfUrl ? `\n📎 Relatório completo:\n${d.pdfUrl}` : '',
-    ].filter(l => l !== undefined).join('\n');
+      '🔧 *SGMA — Relatório de Manutenção*',
+      '📅 ' + periodo,
+      d.tecnico ? '👤 ' + d.tecnico : null,
+      '',
+      '⏱ *Horas-Homem*',
+      '• Disponível: ' + (d.hhDisponivel||0) + 'h',
+      '• Programado: ' + (d.hhProgramado||0) + 'h',
+      '• Realizado:  ' + (d.hhRealizado||0) + 'h',
+      '',
+      '📊 *Taxa de execução: ' + pct + '%*',
+      '✅ Executadas:     ' + ((d.executadasProgramadas||[]).length),
+      '❌ Não realizadas: ' + naoReal.length,
+      '🔧 Fora de prog.: ' + ((d.foraProgramacao||[]).length),
+      '👁 Ver e Agir:    ' + ((d.verEAgir||[]).length),
+      motivosText,
+      naoRealText,
+    ].filter(function(l){ return l !== null && l !== undefined; }).join('\n');
 
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    const msgFinal = msg.length > 3800 ? msg.slice(0,3800) + '\n...' : msg;
+    window.open('https://wa.me/?text=' + encodeURIComponent(msgFinal), '_blank');
+    Utils.toast('WhatsApp aberto!', 'success');
   }
 
   await initFiltros();
