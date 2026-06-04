@@ -9,7 +9,8 @@ const API = (() => {
 
   // ── CONFIGURAÇÃO ──────────────────────────────────────────────
   const CONFIG = {
-    SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyK1rJcdU45kgzGn17CxF7I1iZ9PLVBA4u0ijybCx_6yhxITbyC_8adXcJz38H4W2yedg/exec',
+    SCRIPT_URL:    'https://script.google.com/macros/s/AKfycbyK1rJcdU45kgzGn17CxF7I1iZ9PLVBA4u0ijybCx_6yhxITbyC_8adXcJz38H4W2yedg/exec',
+    PA_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbybesfaHL_c1NX6KT8xS9vhK9x6p01aIHEuhVwFKS6srSWxzvhAai9W0P3GSwCqZzxMsw/exec',
   };
   // ──────────────────────────────────────────────────────────────
 
@@ -27,6 +28,21 @@ const API = (() => {
 
     const res = await fetch(url.toString());
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    return data;
+  }
+
+  // Requisição para a planilha do Plano de Ação (separada)
+  async function paRequest(action, params = {}) {
+    const url = new URL(CONFIG.PA_SCRIPT_URL);
+    url.searchParams.set('action', action);
+    url.searchParams.set('token', token());
+    Object.entries(params).forEach(([k, v]) => {
+      url.searchParams.set(k, typeof v === 'object' ? JSON.stringify(v) : v);
+    });
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     return data;
@@ -124,33 +140,45 @@ const API = (() => {
     deleteMotivo: (id) =>
       request('deleteMotivo', { id }),
 
-    // ── Plano de Ação ──
+    // ── Plano de Ação (planilha separada — PA_SCRIPT_URL) ──
     getPlanos: () =>
-      request('getPlanos'),
+      paRequest('getPlanos'),
 
     savePlano: (dados) =>
-      request('savePlano', dados),
+      paRequest('savePlano', dados),
 
     mudarStatusPlano: (dados) =>
-      request('mudarStatusPlano', dados),
+      paRequest('mudarStatusPlano', dados),
+
+    encerrarPlano: (dados) =>
+      paRequest('encerrarPlano', dados),
 
     getAtividadesPA: (filtros = {}) =>
-      request('getAtividadesPA', filtros),
+      paRequest('getAtividadesPA', filtros),
 
     saveAtividadePA: (dados) =>
-      request('saveAtividadePA', dados),
+      paRequest('saveAtividadePA', { ...dados, _supervisor: 'true' }),
+
+    registrarProgressoPA: (dados) =>
+      paRequest('registrarProgressoPA', dados),
 
     deletarAtividadePA: (id) =>
-      request('deletarAtividadePA', { id }),
+      paRequest('deletarAtividadePA', { id }),
 
     getAprovacoesPA: () =>
-      request('getAprovacoesPA'),
+      paRequest('getAprovacoesPA'),
 
     registrarAprovacaoPA: (dados) =>
-      request('registrarAprovacaoPA', dados),
+      paRequest('registrarAprovacaoPA', dados),
 
     uploadFotoPA: (base64, mimeType, planoId) =>
-      request('uploadFotoPA', { base64, mimeType, planoId }),
+      paRequest('uploadFotoPA', { base64, mimeType, planoId }),
+
+    getHistoricoPA: (planoId) =>
+      paRequest('getHistoricoPA', { planoId }),
+
+    setupPA: () =>
+      paRequest('setupPA'),
 
     // ── Relatório ──
     getRelatorio: (filtros = {}) =>
