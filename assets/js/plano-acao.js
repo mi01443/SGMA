@@ -315,14 +315,7 @@
           <!-- Aprovação -->
           ${isSup ? renderBoxAprovacao(p, aprov, aprovador, finalizado) : ''}
 
-          <!-- Histórico (só supervisor) -->
-          ${isSup ? `<div class="card" id="pa-historico-box">
-            <div class="card-header">
-              <span class="card-title">📜 Histórico</span>
-              <button class="btn btn-ghost btn-sm" id="btn-load-hist">Carregar</button>
-            </div>
-            <div id="pa-historico-content"><p class="text-muted text-sm">Clique em "Carregar" para ver o histórico.</p></div>
-          </div>` : ''}
+
         </div>
 
         <!-- Coluna lateral: info -->
@@ -380,7 +373,7 @@
     Utils.el('btn-nova-atpa')?.addEventListener('click', () => abrirModalAtPA(p.id));
     Utils.el('btn-edit-plano')?.addEventListener('click', () => abrirModalPlano(p.id));
     Utils.el('btn-aprovar-plano')?.addEventListener('click', () => abrirModalAprovacao(p.id));
-    Utils.el('btn-load-hist')?.addEventListener('click', () => carregarHistorico(p.id));
+
 
     // Atividades: editar (sup) ou registrar progresso (tec)
     document.querySelectorAll('.btn-edit-at').forEach(btn => {
@@ -812,29 +805,7 @@
       .catch(e => Utils.toast('Erro: ' + e.message, 'error'));
   }
 
-  // ════════════════════════════════════════
-  // HISTÓRICO
-  // ════════════════════════════════════════
-  async function carregarHistorico(planoId) {
-    const box = Utils.el('pa-historico-content');
-    if (!box) return;
-    box.innerHTML = '<div class="text-muted text-sm">Carregando...</div>';
-    try {
-      const res  = await API.getHistoricoPA(planoId);
-      const hist = res.historico || [];
-      box.innerHTML = hist.length ? hist.map(h => {
-        const u = profissionais.find(x => String(x.id) === String(h.usuario_id));
-        return `<div class="pa-hist-item">
-          <div class="pa-hist-dot"></div>
-          <div>
-            <div class="pa-hist-acao">${h.acao}</div>
-            <div class="pa-hist-meta">${u?.nome||'—'} · ${Utils.fmtDateTime(h.dt_registro)}</div>
-            ${h.detalhe ? `<div class="pa-hist-detalhe">${h.detalhe}</div>` : ''}
-          </div>
-        </div>`;
-      }).join('') : '<p class="text-muted text-sm">Nenhum registro.</p>';
-    } catch(e) { box.innerHTML = `<div class="alert alert-danger">Erro: ${e.message}</div>`; }
-  }
+
 
   // ════════════════════════════════════════
   // EVIDÊNCIAS
