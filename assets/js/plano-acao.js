@@ -566,10 +566,16 @@
     const at = atId ? atividadesPA.find(x => String(x.id) === String(atId)) : null;
     evidenciasTemp = [];
 
-    // Desbloquear campos
+    // Desbloquear campos e restaurar required
     ['atpa-desc','atpa-inicio','atpa-prazo'].forEach(id => {
       const el = Utils.el(id); if (el) { el.readOnly = false; el.style.background = ''; }
     });
+    const respEl2 = Utils.el('atpa-resp');
+    if (respEl2) respEl2.required = true;
+    const prazoEl2 = Utils.el('atpa-prazo');
+    if (prazoEl2) prazoEl2.required = true;
+    const descEl2 = Utils.el('atpa-desc');
+    if (descEl2) descEl2.required = true;
     const respGroup = Utils.el('atpa-resp')?.closest('.form-group');
     if (respGroup) respGroup.style.display = '';
 
@@ -686,9 +692,17 @@
     if (inicioEl) { inicioEl.readOnly = true; inicioEl.style.background = 'var(--gray-50)'; }
     if (prazoEl)  { prazoEl.readOnly  = true; prazoEl.style.background  = 'var(--gray-50)'; }
 
-    // Esconder responsável
+    // Esconder responsável e remover required para não bloquear submit
     const respGroup = Utils.el('atpa-resp')?.closest('.form-group');
     if (respGroup) respGroup.style.display = 'none';
+    const respEl = Utils.el('atpa-resp');
+    if (respEl) respEl.required = false;
+
+    // Remover required dos campos bloqueados (browser bloqueia submit em readonly+required em alguns casos)
+    const prazoElReq = Utils.el('atpa-prazo');
+    if (prazoElReq) prazoElReq.required = false;
+    const descElReq = Utils.el('atpa-desc');
+    if (descElReq) descElReq.required = false;
 
     Utils.el('modal-atpa-title').textContent = '📝 Registrar Andamento — ' + (at.descricao||'').slice(0,40);
     Utils.openModal('modal-atividade-pa');
