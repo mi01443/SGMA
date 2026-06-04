@@ -174,9 +174,6 @@ const API = (() => {
     uploadFotoPA: (base64, mimeType, planoId) =>
       paRequest('uploadFotoPA', { base64, mimeType, planoId }),
 
-    getHistoricoPA: (planoId) =>
-      paRequest('getHistoricoPA', { planoId }),
-
     setupPA: () =>
       paRequest('setupPA'),
 
