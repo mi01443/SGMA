@@ -83,7 +83,7 @@
       Utils.el('btn-confirmar-aprovacao')?.addEventListener('click', confirmarAprovacao);
     }
 
-    Utils.el('form-atpa')?.addEventListener('submit', async e => { e.preventDefault(); await salvarAtividadePA(); });
+    // form-atpa usa onsubmit dinâmico (definido em abrirModalAtPA / abrirModalProgresso)
     Utils.el('atpa-fotos')?.addEventListener('change', handleEvidencias);
   }
 
@@ -591,6 +591,13 @@
     Utils.el('atpa-fotos-grid').innerHTML = '';
 
     Utils.el('modal-atpa-title').textContent = at ? 'Editar Atividade' : 'Nova Atividade';
+
+    // Definir submit para supervisor/admin
+    Utils.el('form-atpa').onsubmit = async (e) => {
+      e.preventDefault();
+      await salvarAtividadePA();
+    };
+
     Utils.openModal('modal-atividade-pa');
   }
 
@@ -707,9 +714,7 @@
         });
         Utils.closeModal('modal-atividade-pa');
         Utils.toast('Andamento registrado!', 'success');
-        // Restaurar submit padrão
         Utils.el('form-atpa').onsubmit = null;
-        Utils.el('form-atpa').addEventListener('submit', async ev => { ev.preventDefault(); await salvarAtividadePA(); });
         await carregarTudo(true);
         if (planoAtual) { planoAtual = planos.find(p=>String(p.id)===String(planoAtual.id))||planoAtual; renderDetalhe(planoAtual); }
       } catch(e) { Utils.toast('Erro: ' + e.message, 'error'); }
