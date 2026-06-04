@@ -1,5 +1,6 @@
 /**
- * plano-acao.js — Módulo completo de Plano de Ação
+ * plano-acao.js — Módulo Plano de Ação SGMA
+ * Planilha separada via PA_SCRIPT_URL
  */
 (async () => {
   const session = Auth.requireAuth(['tecnico','supervisor','admin']);
@@ -7,12 +8,8 @@
   Auth.initUserUI(session);
   Utils.initSidebar();
 
-  // Mostrar admin só para admin/supervisor
-  if (session.perfil === 'tecnico') {
-    Utils.el('nav-admin')?.style && (Utils.el('nav-admin').style.display = 'none');
-  }
+  const isSup = session.perfil === 'supervisor' || session.perfil === 'admin';
 
-  // ── Estado ──
   let planos        = [];
   let profissionais = [];
   let atividadesPA  = [];
@@ -20,23 +17,31 @@
   let planoAtual    = null;
   let filtroAtivo   = 'todos';
   let decidedStatus = null;
-  let evidenciasTemp = [];
+  let evidenciasTemp= [];
 
-  // ── Init ──
+  // Esconder "Novo Plano" para técnico
+  if (!isSup) {
+    const btn = Utils.el('btn-novo-plano');
+    if (btn) btn.style.display = 'none';
+  }
+
   await carregarTudo();
   bindEvents();
   renderLista();
 
-  // Auto-refresh 10s
   setInterval(async () => {
     await carregarTudo(true);
-    if (planoAtual) renderDetalhe(planoAtual);
-    else renderLista();
+    if (planoAtual) {
+      planoAtual = planos.find(p => String(p.id) === String(planoAtual.id)) || planoAtual;
+      renderDetalhe(planoAtual);
+    } else {
+      renderLista();
+    }
   }, 10000);
 
-  // ──────────────────────────────────────────
-  // CARREGAR DADOS
-  // ──────────────────────────────────────────
+  // ════════════════════════════════════════
+  // DADOS
+  // ════════════════════════════════════════
   async function carregarTudo(silent = false) {
     if (!silent) Utils.showLoading('Carregando...');
     try {
@@ -46,22 +51,21 @@
         API.getAtividadesPA(),
         API.getAprovacoesPA(),
       ]);
-      planos        = pRes.planos         || [];
+      planos        = pRes.planos          || [];
       profissionais = profRes.profissionais || [];
-      atividadesPA  = atRes.atividades    || [];
-      aprovacoes    = apRes.aprovacoes    || [];
-    } catch (e) {
+      atividadesPA  = atRes.atividades     || [];
+      aprovacoes    = apRes.aprovacoes     || [];
+    } catch(e) {
       if (!silent) Utils.toast('Erro: ' + e.message, 'error');
     } finally {
       if (!silent) Utils.hideLoading();
     }
   }
 
-  // ──────────────────────────────────────────
+  // ════════════════════════════════════════
   // BIND EVENTS
-  // ──────────────────────────────────────────
+  // ════════════════════════════════════════
   function bindEvents() {
-    // Filtros lista
     document.querySelectorAll('.filter-chip[data-filter]').forEach(c => {
       c.addEventListener('click', () => {
         document.querySelectorAll('.filter-chip[data-filter]').forEach(x => x.classList.remove('active'));
@@ -71,455 +75,447 @@
       });
     });
 
-    // Busca
     Utils.el('pa-search')?.addEventListener('input', renderLista);
 
-    // Novo plano — só supervisor/admin
-    if (session.perfil === 'tecnico') {
-      Utils.el('btn-novo-plano')?.style && (Utils.el('btn-novo-plano').style.display = 'none');
-    } else {
+    if (isSup) {
       Utils.el('btn-novo-plano')?.addEventListener('click', () => abrirModalPlano());
+      Utils.el('form-plano')?.addEventListener('submit', async e => { e.preventDefault(); await salvarPlano(); });
+      Utils.el('btn-confirmar-aprovacao')?.addEventListener('click', confirmarAprovacao);
     }
 
-    // Form plano
-    Utils.el('form-plano')?.addEventListener('submit', async e => {
-      e.preventDefault();
-      await salvarPlano();
-    });
-
-    // Form atividade PA
-    Utils.el('form-atpa')?.addEventListener('submit', async e => {
-      e.preventDefault();
-      await salvarAtividadePA();
-    });
-
-    // Aprovação
-    Utils.el('btn-confirmar-aprovacao')?.addEventListener('click', confirmarAprovacao);
-
-    // Evidências upload
+    Utils.el('form-atpa')?.addEventListener('submit', async e => { e.preventDefault(); await salvarAtividadePA(); });
     Utils.el('atpa-fotos')?.addEventListener('change', handleEvidencias);
   }
 
-  // ──────────────────────────────────────────
-  // DASHBOARD STATS
-  // ──────────────────────────────────────────
-  function renderStats() {
-    const total     = planos.length;
-    const abertos   = planos.filter(p => p.status === 'Aberto').length;
-    const andamento = planos.filter(p => p.status === 'Em andamento').length;
-    const concluidos= planos.filter(p => p.status === 'Concluído').length;
-    const atrasados = planos.filter(p => calcPrazo(p).tipo === 'atraso').length;
+  // ════════════════════════════════════════
+  // STATS
+  // ════════════════════════════════════════
+  function renderStats(lista) {
+    const total    = lista.length;
+    const abertos  = lista.filter(p => p.status === 'Aberto').length;
+    const andamento= lista.filter(p => p.status === 'Em andamento').length;
+    const conc     = lista.filter(p => p.status === 'Concluído').length;
+    const atras    = lista.filter(p => calcPrazo(p).tipo === 'atraso' && p.status !== 'Concluído' && p.status !== 'Cancelado').length;
+    const agAprov  = lista.filter(p => p.status === 'Aguardando aprovação').length;
 
     Utils.setHTML('pa-stats', `
-      <div class="stat-card">
-        <div class="stat-card-label">Total</div>
-        <div class="stat-card-value">${total}</div>
-        <div class="stat-card-sub">planos cadastrados</div>
+      <div class="pa-stat-card" onclick="setFiltro('todos')">
+        <div class="pa-stat-num">${total}</div>
+        <div class="pa-stat-lbl">Total</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-card-label">Abertos</div>
-        <div class="stat-card-value" style="color:var(--info);">${abertos}</div>
-        <div class="stat-card-sub">${andamento} em andamento</div>
+      <div class="pa-stat-card pa-stat-info" onclick="setFiltro('Aberto')">
+        <div class="pa-stat-num">${abertos}</div>
+        <div class="pa-stat-lbl">Abertos</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-card-label">Concluídos</div>
-        <div class="stat-card-value" style="color:var(--success);">${concluidos}</div>
-        <div class="stat-card-sub">${total ? Math.round(concluidos/total*100) : 0}% do total</div>
+      <div class="pa-stat-card pa-stat-primary" onclick="setFiltro('Em andamento')">
+        <div class="pa-stat-num">${andamento}</div>
+        <div class="pa-stat-lbl">Em andamento</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-card-label">Atrasados</div>
-        <div class="stat-card-value" style="color:var(--danger);">${atrasados}</div>
-        <div class="stat-card-sub">requerem atenção</div>
+      <div class="pa-stat-card pa-stat-warning" onclick="setFiltro('Aguardando aprovação')">
+        <div class="pa-stat-num">${agAprov}</div>
+        <div class="pa-stat-lbl">Ag. aprovação</div>
+      </div>
+      <div class="pa-stat-card pa-stat-success" onclick="setFiltro('Concluído')">
+        <div class="pa-stat-num">${conc}</div>
+        <div class="pa-stat-lbl">Concluídos</div>
+      </div>
+      <div class="pa-stat-card pa-stat-danger" onclick="setFiltro('atrasado')">
+        <div class="pa-stat-num">${atras}</div>
+        <div class="pa-stat-lbl">🔴 Atrasados</div>
       </div>
     `);
+    document.querySelectorAll('.pa-stat-card').forEach(c => {
+      c.style.cursor = 'pointer';
+    });
   }
 
-  // ──────────────────────────────────────────
-  // LISTA DE PLANOS
-  // ──────────────────────────────────────────
-  function renderLista() {
-    renderStats();
+  window.setFiltro = (f) => {
+    filtroAtivo = f;
+    document.querySelectorAll('.filter-chip[data-filter]').forEach(c => {
+      c.classList.toggle('active', c.dataset.filter === f || (f === 'todos' && c.dataset.filter === 'todos'));
+    });
+    renderLista();
+  };
 
+  // ════════════════════════════════════════
+  // LISTA
+  // ════════════════════════════════════════
+  function renderLista() {
     let lista = [...planos];
 
-    // Técnico vê apenas planos que têm atividades atribuídas a ele
-    if (session.perfil === 'tecnico') {
-      const meusPlanosIds = new Set(
-        atividadesPA.filter(a => String(a.responsavel_id) === String(session.id))
-                    .map(a => String(a.plano_id))
-      );
-      lista = lista.filter(p => meusPlanosIds.has(String(p.id)));
+    // Técnico vê apenas planos com atividades atribuídas a ele
+    if (!isSup) {
+      const meus = new Set(atividadesPA.filter(a => String(a.responsavel_id) === String(session.id)).map(a => String(a.plano_id)));
+      lista = lista.filter(p => meus.has(String(p.id)));
     }
 
-    const busca = (Utils.el('pa-search')?.value || '').toLowerCase().trim();
-
-    // Filtro status
+    // Filtro
     if (filtroAtivo !== 'todos') {
-      if (filtroAtivo === 'atrasado') {
-        lista = lista.filter(p => calcPrazo(p).tipo === 'atraso');
-      } else {
-        lista = lista.filter(p => p.status === filtroAtivo);
-      }
+      if (filtroAtivo === 'atrasado') lista = lista.filter(p => calcPrazo(p).tipo === 'atraso' && p.status !== 'Concluído' && p.status !== 'Cancelado');
+      else lista = lista.filter(p => p.status === filtroAtivo);
     }
 
     // Busca
-    if (busca) {
-      lista = lista.filter(p =>
-        (p.titulo||'').toLowerCase().includes(busca) ||
-        (p.descricao||'').toLowerCase().includes(busca) ||
-        (p.id||'').toLowerCase().includes(busca)
-      );
-    }
+    const busca = (Utils.el('pa-search')?.value || '').toLowerCase().trim();
+    if (busca) lista = lista.filter(p => (p.titulo||'').toLowerCase().includes(busca) || (p.id||'').toLowerCase().includes(busca));
 
-    // Ordenar: atrasados primeiro, depois por prazo
+    // Ordenar: atrasados e ag.aprovação primeiro
     lista.sort((a, b) => {
       const pa = calcPrazo(a), pb = calcPrazo(b);
-      if (pa.tipo === 'atraso' && pb.tipo !== 'atraso') return -1;
-      if (pa.tipo !== 'atraso' && pb.tipo === 'atraso') return 1;
-      return (a.prazo || '').localeCompare(b.prazo || '');
+      const pa_score = a.status === 'Aguardando aprovação' ? 0 : pa.tipo === 'atraso' ? 1 : pa.tipo === 'urgente' ? 2 : 3;
+      const pb_score = b.status === 'Aguardando aprovação' ? 0 : pb.tipo === 'atraso' ? 1 : pb.tipo === 'urgente' ? 2 : 3;
+      return pa_score - pb_score || (a.prazo||'').localeCompare(b.prazo||'');
     });
+
+    renderStats(lista);
 
     const container = Utils.el('pa-lista');
     if (!container) return;
 
     if (!lista.length) {
-      container.innerHTML = `<div class="empty-state">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-        <h3>Nenhum plano encontrado</h3>
-        <p>Crie um novo plano ou ajuste os filtros</p>
+      container.innerHTML = `<div class="pa-empty">
+        <div class="pa-empty-icon">📋</div>
+        <div class="pa-empty-title">${!isSup ? 'Nenhum plano atribuído a você' : 'Nenhum plano encontrado'}</div>
+        <div class="pa-empty-sub">${!isSup ? 'Quando um plano for atribuído, aparecerá aqui.' : 'Crie um novo plano de ação.'}</div>
+        ${isSup ? `<button class="btn btn-primary" onclick="abrirModalPlano()" style="margin-top:1rem;">+ Novo Plano</button>` : ''}
       </div>`;
       return;
     }
 
     container.innerHTML = lista.map(p => renderPlanoCard(p)).join('');
-
-    container.querySelectorAll('.pa-card-header').forEach(h => {
-      h.addEventListener('click', () => abrirDetalhe(h.dataset.id));
+    container.querySelectorAll('.pa-card-click').forEach(el => {
+      el.addEventListener('click', () => abrirDetalhe(el.dataset.id));
     });
   }
 
   function renderPlanoCard(p) {
     const prazo   = calcPrazo(p);
-    const ats     = atividadesPA.filter(a => a.plano_id === p.id);
-    const pct     = calcPctPlano(ats);
-    const criador = profissionais.find(u => String(u.id) === String(p.criado_por));
+    const ats     = atividadesPA.filter(a => String(a.plano_id) === String(p.id));
+    const minhasAt= !isSup ? ats.filter(a => String(a.responsavel_id) === String(session.id)) : ats;
+    const pct     = calcPct(ats);
+    const concl   = ats.filter(a => a.status === 'Concluída').length;
+    const finalizado = p.status === 'Concluído' || p.status === 'Cancelado';
 
     return `
-    <div class="pa-card">
-      <div class="pa-card-header" data-id="${p.id}">
-        <div class="pa-prio-stripe prio-${p.prioridade}"></div>
-        <div class="pa-card-info">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-            <div>
-              <div style="font-size:.65rem;font-family:var(--mono);color:var(--gray-400);margin-bottom:3px;">${p.id}</div>
-              <div class="pa-titulo">${p.titulo}</div>
-            </div>
-            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
-              ${prioridadeBadgePA(p.prioridade)}
-              ${statusBadgePA(p.status)}
+    <div class="pa-card ${finalizado ? 'pa-card-done' : ''}" data-id="${p.id}">
+      <div class="pa-card-stripe prio-${p.prioridade}"></div>
+      <div class="pa-card-body pa-card-click" data-id="${p.id}">
+        <div class="pa-card-top">
+          <div class="pa-card-left">
+            <div class="pa-card-id">${p.id}</div>
+            <div class="pa-card-titulo">${p.titulo}</div>
+            <div class="pa-card-meta">
+              <span>📂 ${p.origem||'—'}</span>
+              <span>🏭 ${p.setor||'—'}</span>
+              <span>📋 ${ats.length} atividade${ats.length!==1?'s':''}</span>
+              ${!isSup ? `<span>👤 Você tem ${minhasAt.length} atividade${minhasAt.length!==1?'s':''}</span>` : ''}
             </div>
           </div>
-          <div class="pa-meta">
-            <span>📂 ${p.origem || '—'}</span>
-            <span>🏭 ${p.setor || '—'}</span>
-            <span>👤 ${criador?.nome || '—'}</span>
-            <span>📋 ${ats.length} atividade${ats.length !== 1 ? 's' : ''}</span>
-            <span class="${prazo.cls}">${prazo.label}</span>
+          <div class="pa-card-right">
+            ${badgePrio(p.prioridade)}
+            ${badgeStatus(p.status)}
+            <div class="pa-prazo-badge ${prazo.cls}">${prazo.label}</div>
           </div>
-          <div class="pa-progresso-wrap">
-            <div class="pa-progresso-label">
-              <span>Progresso</span>
-              <span style="font-weight:600;">${pct}%</span>
-            </div>
-            <div class="progress">
-              <div class="progress-bar ${pct >= 100 ? 'success' : ''}" style="width:${pct}%"></div>
-            </div>
+        </div>
+        <div class="pa-card-progress">
+          <div class="pa-card-progress-info">
+            <span>${concl}/${ats.length} concluídas</span>
+            <span class="pa-card-pct">${pct}%</span>
+          </div>
+          <div class="pa-progress-bar">
+            <div class="pa-progress-fill ${pct>=100?'done':prazo.tipo==='atraso'?'danger':''}" style="width:${pct}%"></div>
           </div>
         </div>
       </div>
+      ${isSup ? `
+      <div class="pa-card-actions">
+        <button class="btn btn-ghost btn-icon" onclick="event.stopPropagation();abrirModalPlano('${p.id}')" title="Editar" ${finalizado?'disabled':''}>✏️</button>
+      </div>` : ''}
     </div>`;
   }
 
-  // ──────────────────────────────────────────
+  // ════════════════════════════════════════
   // DETALHE DO PLANO
-  // ──────────────────────────────────────────
-  function abrirDetalhe(id) {
+  // ════════════════════════════════════════
+  window.abrirDetalhe = async (id) => {
     planoAtual = planos.find(p => String(p.id) === String(id));
     if (!planoAtual) return;
     Utils.el('view-lista').classList.add('hidden');
     Utils.el('view-detalhe').classList.remove('hidden');
     Utils.el('topbar-title').textContent = 'Detalhe do Plano';
     renderDetalhe(planoAtual);
-  }
+  };
 
   function renderDetalhe(p) {
-    const ats       = atividadesPA.filter(a => a.plano_id === p.id);
-    const pct       = calcPctPlano(ats);
+    const ats       = atividadesPA.filter(a => String(a.plano_id) === String(p.id));
+    const minhasAt  = !isSup ? ats.filter(a => String(a.responsavel_id) === String(session.id)) : ats;
+    const pct       = calcPct(ats);
     const prazo     = calcPrazo(p);
-    const criador   = profissionais.find(u => String(u.id) === String(p.criado_por));
-    const aprovador = profissionais.find(u => String(u.id) === String(p.aprovador));
     const aprov     = aprovacoes.find(a => String(a.plano_id) === String(p.id));
-    const isSup   = session.perfil === 'supervisor' || session.perfil === 'admin';
-    const canEdit = isSup; // técnico NUNCA edita o plano nem adiciona atividades
+    const aprovador = profissionais.find(u => String(u.id) === String(p.aprovador_id));
+    const criador   = profissionais.find(u => String(u.id) === String(p.criado_por));
+    const finalizado= p.status === 'Concluído' || p.status === 'Cancelado';
 
     Utils.setHTML('pa-detalhe-content', `
       <!-- Voltar -->
-      <div style="margin-bottom:1rem;">
-        <button class="btn btn-ghost btn-sm" id="btn-voltar-lista">← Voltar à lista</button>
-      </div>
+      <button class="pa-btn-voltar" id="btn-voltar">← Voltar</button>
 
-      <!-- Header do plano -->
-      <div class="pa-detail-header">
-        <div class="pa-detail-id">${p.id} · ${p.classificacao || '—'} · ${p.setor || '—'}</div>
-        <div class="pa-detail-title">${p.titulo}</div>
-        <div class="pa-detail-desc">${p.descricao || '—'}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center;">
-          ${prioridadeBadgePA(p.prioridade)}
-          ${statusBadgePA(p.status)}
-          <span class="${prazo.cls}">${prazo.label}</span>
-          <span style="font-size:.72rem;color:var(--gray-400);">Criado por ${criador?.nome || '—'} · ${Utils.fmtDate(p.dt_criacao)}</span>
-        </div>
-        <!-- Progresso geral -->
-        <div style="margin-top:14px;">
-          <div style="display:flex;justify-content:space-between;font-size:.72rem;color:rgba(255,255,255,.6);margin-bottom:5px;">
-            <span>Progresso geral</span><span style="font-weight:700;color:#fff;">${pct}%</span>
+      <!-- Hero do plano -->
+      <div class="pa-hero ${finalizado ? 'pa-hero-done' : ''}">
+        <div class="pa-hero-top">
+          <div>
+            <div class="pa-hero-id">${p.id} · ${p.classificacao||'—'} · ${p.setor||'—'}</div>
+            <div class="pa-hero-titulo">${p.titulo}</div>
+            <div class="pa-hero-desc">${p.descricao||'—'}</div>
           </div>
-          <div style="height:8px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden;">
-            <div style="height:100%;width:${pct}%;background:${pct>=100?'var(--success)':'rgba(255,255,255,.8)'};border-radius:99px;transition:width .4s;"></div>
+          <div class="pa-hero-badges">
+            ${badgePrio(p.prioridade)}
+            ${badgeStatus(p.status)}
+            <div class="pa-prazo-badge ${prazo.cls}">${prazo.label}</div>
+            ${finalizado ? '<span class="pa-locked-badge">🔒 Finalizado</span>' : ''}
           </div>
         </div>
+        <div class="pa-hero-progress">
+          <div class="pa-hero-pct-row">
+            <span>Progresso geral</span>
+            <span class="pa-hero-pct-num">${pct}%</span>
+          </div>
+          <div class="pa-hero-bar">
+            <div class="pa-hero-bar-fill ${pct>=100?'done':''}" style="width:${pct}%"></div>
+          </div>
+          <div class="pa-hero-counts">
+            <span>✅ ${ats.filter(a=>a.status==='Concluída').length} concluídas</span>
+            <span>⏳ ${ats.filter(a=>a.status==='Em andamento').length} em andamento</span>
+            <span>🔲 ${ats.filter(a=>a.status==='Não iniciada').length} não iniciadas</span>
+            ${ats.filter(a=>calcPrazoAt(a).tipo==='atraso'&&a.status!=='Concluída').length ? `<span class="text-danger">🔴 ${ats.filter(a=>calcPrazoAt(a).tipo==='atraso'&&a.status!=='Concluída').length} atrasadas</span>` : ''}
+          </div>
+        </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 340px;gap:1.25rem;">
-        <!-- Coluna principal -->
-        <div>
+      <!-- Grid principal -->
+      <div class="pa-detail-grid">
+        <!-- Coluna principal: atividades -->
+        <div class="pa-detail-main">
+
           <!-- Atividades -->
-          <div class="card mb-3">
+          <div class="card">
             <div class="card-header">
-              <span class="card-title">📋 Atividades do Plano</span>
-              ${isSup ? `<button class="btn btn-primary btn-sm" id="btn-nova-atpa">+ Atividade</button>` : ''}
+              <span class="card-title">📋 ${isSup ? 'Atividades do Plano' : 'Minhas Atividades'}</span>
+              ${isSup && !finalizado ? `<button class="btn btn-primary btn-sm" id="btn-nova-atpa">+ Nova Atividade</button>` : ''}
             </div>
-            ${ats.length ? ats.map((a, i) => renderAtividadePAItem(a, i)).join('') : `
-              <div class="empty-state" style="padding:24px;">
-                <p>${isSup ? 'Nenhuma atividade cadastrada' : 'Nenhuma atividade atribuída a você neste plano'}</p>
-              </div>`}
+
+            ${(isSup ? ats : minhasAt).length === 0 ? `
+              <div class="pa-empty" style="padding:1.5rem;">
+                <div class="pa-empty-icon" style="font-size:1.5rem;">📭</div>
+                <div class="pa-empty-title">${isSup ? 'Nenhuma atividade cadastrada' : 'Nenhuma atividade atribuída a você'}</div>
+              </div>
+            ` : (isSup ? ats : minhasAt).map((a, i) => renderAtItem(a, i, finalizado)).join('')}
           </div>
 
           <!-- Aprovação -->
-          <div class="card mb-3">
-            <div class="card-header"><span class="card-title">✅ Aprovação</span></div>
-            ${aprov ? `
-              <div class="aprov-box ${aprov.decisao === 'Aprovado' ? 'aprovado' : 'reprovado'}">
-                <div style="font-size:1.5rem;">${aprov.decisao === 'Aprovado' ? '✅' : '❌'}</div>
-                <div>
-                  <div style="font-weight:600;font-size:.875rem;">${aprov.decisao}</div>
-                  <div style="font-size:.775rem;color:var(--gray-500);margin-top:2px;">
-                    Por ${profissionais.find(u=>String(u.id)===String(aprov.aprovador_id))?.nome || '—'} · ${Utils.fmtDate(aprov.dt_aprovacao)}
-                  </div>
-                  ${aprov.comentario ? `<div style="font-size:.8rem;margin-top:6px;">${aprov.comentario}</div>` : ''}
-                </div>
-              </div>` : `
-              <div class="aprov-box">
-                <div style="font-size:1.25rem;">⏳</div>
-                <div>
-                  <div style="font-weight:500;font-size:.875rem;">Aguardando aprovação</div>
-                  <div style="font-size:.775rem;color:var(--gray-400);margin-top:2px;">
-                    Aprovador: ${aprovador?.nome || 'Não definido'}
-                  </div>
-                </div>
-              </div>`}
-            ${isSup && !aprov ? `
-              <button class="btn btn-primary btn-sm" id="btn-aprovar-plano" style="margin-top:12px;">
-                Registrar Aprovação
-              </button>` : ''}
-          </div>
+          ${isSup ? renderBoxAprovacao(p, aprov, aprovador, finalizado) : ''}
+
+          <!-- Histórico (só supervisor) -->
+          ${isSup ? `<div class="card" id="pa-historico-box">
+            <div class="card-header">
+              <span class="card-title">📜 Histórico</span>
+              <button class="btn btn-ghost btn-sm" id="btn-load-hist">Carregar</button>
+            </div>
+            <div id="pa-historico-content"><p class="text-muted text-sm">Clique em "Carregar" para ver o histórico.</p></div>
+          </div>` : ''}
         </div>
 
-        <!-- Coluna lateral -->
-        <div>
-          <!-- Info do plano -->
-          <div class="card mb-3">
+        <!-- Coluna lateral: info -->
+        <div class="pa-detail-side">
+          <!-- Informações -->
+          <div class="card pa-info-card">
             <div class="card-header">
               <span class="card-title">ℹ️ Informações</span>
-              ${canEdit ? `<button class="btn btn-ghost btn-sm btn-icon" id="btn-editar-plano">✏️</button>` : ''}
+              ${isSup && !finalizado ? `<button class="btn btn-ghost btn-sm" id="btn-edit-plano">✏️ Editar</button>` : ''}
             </div>
-            ${infoRow('Origem',      p.origem)}
-            ${infoRow('Classificação', p.classificacao)}
-            ${infoRow('Prioridade',  prioridadeBadgePA(p.prioridade))}
-            ${infoRow('Setor',       p.setor)}
-            ${infoRow('Prazo final', Utils.fmtDate(p.prazo))}
-            ${infoRow('Aprovador',   aprovador?.nome || '—')}
-            ${p.hh_previsto ? infoRow('HH Previsto', p.hh_previsto + 'h') : ''}
-            ${p.mat_previsto ? infoRow('Material Prev.', 'R$ ' + parseFloat(p.mat_previsto).toLocaleString('pt-BR')) : ''}
+            ${paInfoRow('Origem',       p.origem)}
+            ${paInfoRow('Classificação',p.classificacao)}
+            ${paInfoRow('Prioridade',   badgePrio(p.prioridade))}
+            ${paInfoRow('Setor',        p.setor)}
+            ${paInfoRow('Criado por',   criador?.nome || '—')}
+            ${paInfoRow('Criado em',    Utils.fmtDate(p.dt_criacao))}
+            ${paInfoRow('Prazo final',  `<strong>${Utils.fmtDate(p.prazo)}</strong>`)}
+            ${paInfoRow('Aprovador',    aprovador?.nome || '—')}
+            ${p.hh_previsto  ? paInfoRow('HH Previsto',     p.hh_previsto + 'h') : ''}
+            ${p.mat_previsto ? paInfoRow('Material Prev.',  'R$ ' + parseFloat(p.mat_previsto||0).toLocaleString('pt-BR')) : ''}
+            ${p.obs_encerramento ? `<div style="margin-top:10px;padding:8px 10px;background:var(--gray-50);border-radius:var(--radius);border-left:3px solid var(--gray-300);font-size:.8rem;">${p.obs_encerramento}</div>` : ''}
           </div>
 
-          <!-- Indicadores de prazo -->
-          <div class="card mb-3">
-            <div class="card-header"><span class="card-title">⏱ Controle de Prazo</span></div>
-            ${renderIndicadoresPrazo(ats)}
-          </div>
-
-          <!-- Ações -->
-          ${isSup ? `
+          <!-- Controle de prazo por atividade -->
           <div class="card">
-            <div class="card-header"><span class="card-title">⚙️ Ações</span></div>
-            <div style="display:grid;gap:6px;">
-              ${renderBotoesStatus(p.status, isSup)}
+            <div class="card-header"><span class="card-title">⏱ Prazo por atividade</span></div>
+            ${ats.length ? ats.map(a => {
+              const pr = calcPrazoAt(a);
+              const resp = profissionais.find(u => String(u.id) === String(a.responsavel_id));
+              return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--gray-100);">
+                <div style="min-width:0;flex:1;">
+                  <div style="font-size:.775rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${a.descricao||'—'}</div>
+                  <div style="font-size:.68rem;color:var(--gray-400);">${resp?.nome||'—'}</div>
+                </div>
+                <span class="pa-prazo-badge ${pr.cls}" style="margin-left:8px;flex-shrink:0;">${pr.label}</span>
+              </div>`;
+            }).join('') : '<p class="text-muted text-sm">Sem atividades</p>'}
+          </div>
+
+          <!-- Ações (só supervisor) -->
+          ${isSup && !finalizado ? `
+          <div class="card">
+            <div class="card-header"><span class="card-title">⚙️ Ações do Plano</span></div>
+            <div style="display:grid;gap:8px;">
+              ${renderBotoesFluxo(p.status)}
+              <button class="btn btn-danger btn-sm" id="btn-encerrar-plano">🔒 Encerrar definitivamente</button>
             </div>
           </div>` : ''}
         </div>
       </div>
     `);
 
-    // Eventos
-    Utils.el('btn-voltar-lista')?.addEventListener('click', voltarLista);
-    Utils.el('btn-nova-atpa')?.addEventListener('click', () => abrirModalAtividadePA(p.id));
-    Utils.el('btn-editar-plano')?.addEventListener('click', () => abrirModalPlano(p.id));
+    // ── Eventos ──
+    Utils.el('btn-voltar')?.addEventListener('click', voltarLista);
+    Utils.el('btn-nova-atpa')?.addEventListener('click', () => abrirModalAtPA(p.id));
+    Utils.el('btn-edit-plano')?.addEventListener('click', () => abrirModalPlano(p.id));
     Utils.el('btn-aprovar-plano')?.addEventListener('click', () => abrirModalAprovacao(p.id));
+    Utils.el('btn-load-hist')?.addEventListener('click', () => carregarHistorico(p.id));
 
-    document.querySelectorAll('.btn-editar-atpa').forEach(btn => {
-      btn.addEventListener('click', () => abrirModalAtividadePA(p.id, btn.dataset.atId));
+    // Atividades: editar (sup) ou registrar progresso (tec)
+    document.querySelectorAll('.btn-edit-at').forEach(btn => {
+      btn.addEventListener('click', () => abrirModalAtPA(p.id, btn.dataset.id));
     });
-    document.querySelectorAll('.btn-del-atpa').forEach(btn => {
-      btn.addEventListener('click', () => deletarAtividadePA(btn.dataset.atId));
+    document.querySelectorAll('.btn-del-at').forEach(btn => {
+      btn.addEventListener('click', () => deletarAt(btn.dataset.id));
     });
-    // Técnico registra progresso na SUA atividade
-    document.querySelectorAll('.btn-registrar-atpa').forEach(btn => {
-      btn.addEventListener('click', () => abrirModalRegistroTecnico(p.id, btn.dataset.atId));
+    document.querySelectorAll('.btn-progresso-at').forEach(btn => {
+      btn.addEventListener('click', () => abrirModalProgresso(btn.dataset.id));
     });
-    document.querySelectorAll('.btn-mudar-status').forEach(btn => {
-      btn.addEventListener('click', () => mudarStatusPlano(p.id, btn.dataset.status));
+
+    // Status flow
+    document.querySelectorAll('.btn-fluxo').forEach(btn => {
+      btn.addEventListener('click', () => mudarStatus(p.id, btn.dataset.status));
     });
+
+    // Encerrar
+    Utils.el('btn-encerrar-plano')?.addEventListener('click', () => abrirEncerramento(p.id));
   }
 
-  function renderAtividadePAItem(a, idx) {
+  // ── Renderizar item de atividade ──
+  function renderAtItem(a, idx, finalizado) {
     const resp  = profissionais.find(u => String(u.id) === String(a.responsavel_id));
     const prazo = calcPrazoAt(a);
     const pct   = parseInt(a.pct_concluida) || 0;
     const done  = a.status === 'Concluída';
-    const late  = prazo.tipo === 'atraso' && !done;
-    // Técnico: pode editar APENAS atividades atribuídas a ele (para registrar progresso %)
-    // Supervisor/Admin: pode editar e excluir qualquer atividade
-    const canEditAt  = isSup;
-    const canFillAt  = !isSup && String(a.responsavel_id) === String(session.id);
+    const canc  = a.status === 'Cancelada';
+    const atFinalizada = done || canc;
+    const isMinha = String(a.responsavel_id) === String(session.id);
+    const canReg   = !isSup && isMinha && !atFinalizada && !finalizado;
+    const canEdit  = isSup && !finalizado;
+    const canDel   = isSup && !atFinalizada && !finalizado;
+
+    let evids = [];
+    try { evids = JSON.parse(a.evidencias || '[]'); } catch{}
 
     return `
-    <div class="atpa-item">
-      <div class="atpa-num ${done ? 'done' : late ? 'late' : ''}">${done ? '✓' : late ? '!' : idx+1}</div>
-      <div class="atpa-body">
-        <div class="atpa-desc ${done ? 'text-muted' : ''}" style="${done ? 'text-decoration:line-through;' : ''}">${a.descricao}</div>
-        <div class="atpa-info">
-          <span>👤 ${resp?.nome || '—'}</span>
-          <span>📅 ${Utils.fmtDate(a.prazo)}</span>
-          ${a.dt_conclusao ? `<span>✅ ${Utils.fmtDate(a.dt_conclusao)}</span>` : ''}
-          <span class="${prazo.cls}" style="padding:1px 7px;border-radius:99px;font-size:.67rem;font-weight:600;">${prazo.label}</span>
-          <span class="badge ${a.status === 'Concluída' ? 'badge-success' : a.status === 'Em andamento' ? 'badge-primary' : 'badge-gray'}">${a.status}</span>
+    <div class="pa-at-item ${done?'pa-at-done':''} ${canc?'pa-at-canc':''}">
+      <div class="pa-at-num ${done?'num-done':prazo.tipo==='atraso'&&!atFinalizada?'num-late':''}">${done?'✓':prazo.tipo==='atraso'&&!atFinalizada?'!':idx+1}</div>
+      <div class="pa-at-body">
+        <div class="pa-at-header">
+          <div class="pa-at-desc ${done||canc?'text-done':''}">${a.descricao}</div>
+          <div class="pa-at-btns">
+            ${canEdit  ? `<button class="btn btn-ghost btn-sm btn-icon btn-edit-at" data-id="${a.id}" title="Editar">✏️</button>` : ''}
+            ${canDel   ? `<button class="btn btn-ghost btn-sm btn-icon btn-del-at"  data-id="${a.id}" title="Excluir" style="color:var(--danger);">🗑</button>` : ''}
+            ${canReg   ? `<button class="btn btn-primary btn-sm btn-progresso-at" data-id="${a.id}">📝 Registrar</button>` : ''}
+          </div>
         </div>
-        <div class="pct-bar-wrap">
-          <div class="pct-bar"><div class="pct-fill ${done ? 'done' : ''}" style="width:${pct}%"></div></div>
-          <div class="pct-label">${pct}%</div>
+        <div class="pa-at-meta">
+          <span>👤 ${resp?.nome||'—'}</span>
+          <span>📅 Prazo: ${Utils.fmtDate(a.prazo)}</span>
+          ${a.dt_conclusao ? `<span>✅ Concluída: ${Utils.fmtDate(a.dt_conclusao)}</span>` : ''}
+          <span class="pa-prazo-badge ${prazo.cls}" style="font-size:.65rem;">${prazo.label}</span>
+          <span class="badge ${done?'badge-success':canc?'badge-gray':a.status==='Em andamento'?'badge-primary':'badge-gray'}">${a.status}</span>
+          ${atFinalizada ? '<span style="font-size:.65rem;color:var(--gray-400);">🔒 campos bloqueados</span>' : ''}
         </div>
-        ${a.comentarios ? `<div style="font-size:.75rem;color:var(--gray-500);margin-top:4px;padding:5px 8px;background:var(--gray-50);border-radius:var(--radius-sm);border-left:2px solid var(--gray-300);">${a.comentarios}</div>` : ''}
-        ${a.evidencias ? renderEvidenciasRow(a.evidencias) : ''}
-      </div>
-      <div class="atpa-actions">
-        ${canEditAt ? `
-          <button class="btn btn-ghost btn-sm btn-icon btn-editar-atpa" data-at-id="${a.id}" title="Editar">✏️</button>
-          <button class="btn btn-ghost btn-sm btn-icon btn-del-atpa" data-at-id="${a.id}" title="Excluir" style="color:var(--danger);">🗑</button>
-        ` : canFillAt ? `
-          <button class="btn btn-primary btn-sm btn-registrar-atpa" data-at-id="${a.id}">Registrar</button>
-        ` : ''}
+        <!-- Barra de progresso -->
+        <div class="pa-at-pct-row">
+          <div class="pa-at-pct-bar">
+            <div class="pa-at-pct-fill ${done?'done':''}" style="width:${pct}%"></div>
+          </div>
+          <span class="pa-at-pct-num">${pct}%</span>
+        </div>
+        ${a.comentarios ? `<div class="pa-at-comentario">${a.comentarios}</div>` : ''}
+        ${evids.length ? `<div class="pa-at-evidencias">${evids.map(url =>
+          url.match(/\.(jpg|jpeg|png|gif|webp)/i)
+            ? `<img src="${url}" class="pa-ev-img" onclick="window.open('${url}','_blank')">`
+            : `<div class="pa-ev-pdf" onclick="window.open('${url}','_blank')">📄 PDF</div>`
+        ).join('')}</div>` : ''}
       </div>
     </div>`;
   }
 
-  function renderEvidenciasRow(evStr) {
-    try {
-      const evs = typeof evStr === 'string' ? JSON.parse(evStr) : evStr;
-      if (!evs || !evs.length) return '';
-      return `<div class="evidencias-grid">${evs.map(url =>
-        url.match(/\.(jpg|jpeg|png|gif|webp)/i)
-          ? `<div class="evidencia-item"><img src="${url}" onclick="window.open('${url}','_blank')"></div>`
-          : `<div class="evidencia-pdf" onclick="window.open('${url}','_blank')"><span>📄</span><span>PDF</span></div>`
-      ).join('')}</div>`;
-    } catch { return ''; }
-  }
-
-  function renderIndicadoresPrazo(ats) {
-    const total   = ats.length;
-    const concl   = ats.filter(a => a.status === 'Concluída').length;
-    const atras   = ats.filter(a => calcPrazoAt(a).tipo === 'atraso' && a.status !== 'Concluída').length;
-    const urgente = ats.filter(a => calcPrazoAt(a).tipo === 'urgente' && a.status !== 'Concluída').length;
-    const prazoPlano = calcPrazo(planoAtual);
-
+  // ── Box aprovação ──
+  function renderBoxAprovacao(p, aprov, aprovador, finalizado) {
+    const agAprov = p.status === 'Aguardando aprovação';
     return `
-      <div style="display:grid;gap:8px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--gray-100);">
-          <span style="font-size:.775rem;color:var(--gray-500);">Plano</span>
-          <span class="${prazoPlano.cls}">${prazoPlano.label}</span>
+    <div class="card">
+      <div class="card-header"><span class="card-title">✅ Aprovação</span></div>
+      ${aprov ? `
+        <div class="pa-aprov-box ${aprov.decisao==='Aprovado'?'aprov-ok':'aprov-nok'}">
+          <div class="pa-aprov-icon">${aprov.decisao==='Aprovado'?'✅':'❌'}</div>
+          <div>
+            <div class="pa-aprov-decisao">${aprov.decisao}</div>
+            <div class="pa-aprov-meta">Por ${profissionais.find(u=>String(u.id)===String(aprov.aprovador_id))?.nome||'—'} · ${Utils.fmtDate(aprov.dt_aprovacao)}</div>
+            ${aprov.comentario?`<div class="pa-aprov-comentario">${aprov.comentario}</div>`:''}
+          </div>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--gray-100);">
-          <span style="font-size:.775rem;color:var(--gray-500);">🟢 No prazo</span>
-          <span style="font-weight:600;">${total - atras - urgente - concl}</span>
+      ` : `
+        <div class="pa-aprov-box aprov-pending">
+          <div class="pa-aprov-icon">⏳</div>
+          <div>
+            <div class="pa-aprov-decisao">Aguardando aprovação</div>
+            <div class="pa-aprov-meta">Aprovador: ${aprovador?.nome||'Não definido'}</div>
+          </div>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--gray-100);">
-          <span style="font-size:.775rem;color:var(--gray-500);">🟡 Vence em 3 dias</span>
-          <span style="font-weight:600;color:var(--warning);">${urgente}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--gray-100);">
-          <span style="font-size:.775rem;color:var(--gray-500);">🔴 Atrasadas</span>
-          <span style="font-weight:600;color:var(--danger);">${atras}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;">
-          <span style="font-size:.775rem;color:var(--gray-500);">✅ Concluídas</span>
-          <span style="font-weight:600;color:var(--success);">${concl}/${total}</span>
-        </div>
-      </div>`;
+      `}
+      ${agAprov && !aprov && !finalizado ? `
+        <button class="btn btn-primary btn-sm" id="btn-aprovar-plano" style="margin-top:12px;width:100%;">
+          Registrar Aprovação
+        </button>` : ''}
+    </div>`;
   }
 
-  function renderBotoesStatus(statusAtual, isSup) {
+  function renderBotoesFluxo(status) {
     const fluxo = {
-      'Aberto':               ['Em andamento'],
-      'Em andamento':         ['Aguardando aprovação','Cancelado'],
-      'Aguardando aprovação': isSup ? ['Concluído','Em andamento'] : [],
+      'Aberto':               [['Em andamento','▶ Iniciar']],
+      'Em andamento':         [['Aguardando aprovação','📤 Enviar para aprovação'],['Cancelado','❌ Cancelar']],
+      'Aguardando aprovação': [['Em andamento','↩ Reabrir'],['Concluído','✅ Concluir']],
       'Concluído':            [],
-      'Cancelado':            ['Aberto'],
+      'Cancelado':            [['Aberto','↩ Reabrir']],
     };
-    const proximos = fluxo[statusAtual] || [];
-    if (!proximos.length) return '<p class="text-muted text-sm">Nenhuma ação disponível para o status atual.</p>';
-    return proximos.map(s => `
-      <button class="btn btn-secondary btn-sm btn-mudar-status" data-status="${s}">
-        ${s === 'Em andamento' ? '▶' : s === 'Aguardando aprovação' ? '📤' : s === 'Concluído' ? '✅' : s === 'Cancelado' ? '❌' : '↩️'} ${s}
-      </button>`).join('');
+    const proximos = fluxo[status] || [];
+    if (!proximos.length) return '<p class="text-muted text-sm">Plano finalizado.</p>';
+    return proximos.map(([s, label]) =>
+      `<button class="btn btn-secondary btn-sm btn-fluxo" data-status="${s}">${label}</button>`
+    ).join('');
   }
 
-  function infoRow(label, val) {
-    return `<div class="info-row" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray-50);">
-      <span style="font-size:.72rem;color:var(--gray-400);">${label}</span>
-      <span style="font-size:.8rem;font-weight:500;text-align:right;">${val || '—'}</span>
-    </div>`;
-  }
-
-  function voltarLista() {
-    planoAtual = null;
-    Utils.el('view-detalhe').classList.add('hidden');
-    Utils.el('view-lista').classList.remove('hidden');
-    Utils.el('topbar-title').textContent = 'Planos de Ação';
-    renderLista();
-  }
-
-  // ──────────────────────────────────────────
-  // MODAL PLANO
-  // ──────────────────────────────────────────
-  function abrirModalPlano(id = null) {
+  // ════════════════════════════════════════
+  // MODAL PLANO (supervisor/admin)
+  // ════════════════════════════════════════
+  window.abrirModalPlano = (id = null) => {
+    if (!isSup) return;
     const p = id ? planos.find(x => String(x.id) === String(id)) : null;
+    if (p && (p.status === 'Concluído' || p.status === 'Cancelado')) {
+      Utils.toast('Plano finalizado — não pode ser editado.', 'error'); return;
+    }
 
-    // Preencher aprovadores
-    const sel = Utils.el('plano-aprovador');
-    if (sel) {
-      sel.innerHTML = '<option value="">— Selecione —</option>' +
+    const aprovSel = Utils.el('plano-aprovador');
+    if (aprovSel) {
+      aprovSel.innerHTML = '<option value="">— Selecione —</option>' +
         profissionais.filter(u => u.perfil === 'supervisor' || u.perfil === 'admin')
-          .map(u => `<option value="${u.id}" ${p?.aprovador === u.id ? 'selected' : ''}>${u.nome}</option>`).join('');
+          .map(u => `<option value="${u.id}" ${p?.aprovador_id===u.id?'selected':''}>${u.nome}</option>`).join('');
     }
 
     Utils.el('plano-id').value        = p?.id || '';
@@ -532,16 +528,15 @@
     Utils.el('plano-setor').value     = p?.setor || 'Elétrica';
     Utils.el('plano-hh-prev').value   = p?.hh_previsto || '';
     Utils.el('plano-mat-prev').value  = p?.mat_previsto || '';
-
     Utils.el('modal-plano-title').textContent = p ? 'Editar Plano' : 'Novo Plano de Ação';
     Utils.openModal('modal-plano');
-  }
+  };
 
   async function salvarPlano() {
     const btn = Utils.el('btn-salvar-plano');
     btn.disabled = true;
     try {
-      const dados = {
+      await API.savePlano({
         id:           Utils.el('plano-id').value,
         titulo:       Utils.el('plano-titulo').value.trim(),
         descricao:    Utils.el('plano-desc').value.trim(),
@@ -550,88 +545,49 @@
         prioridade:   Utils.el('plano-prio').value,
         prazo:        Utils.el('plano-prazo').value,
         setor:        Utils.el('plano-setor').value,
-        aprovador:    Utils.el('plano-aprovador').value,
+        aprovador_id: Utils.el('plano-aprovador').value,
         hh_previsto:  Utils.el('plano-hh-prev').value,
         mat_previsto: Utils.el('plano-mat-prev').value,
         criado_por:   session.id,
-      };
-      await API.savePlano(dados);
+      });
       Utils.closeModal('modal-plano');
       Utils.toast('Plano salvo!', 'success');
       await carregarTudo(true);
-      if (planoAtual && dados.id) renderDetalhe(planos.find(p => String(p.id) === String(dados.id)) || planoAtual);
+      if (planoAtual) { planoAtual = planos.find(p => String(p.id) === String(planoAtual.id)) || planoAtual; renderDetalhe(planoAtual); }
       else renderLista();
-    } catch (e) {
-      Utils.toast('Erro: ' + e.message, 'error');
-    } finally { btn.disabled = false; }
+    } catch(e) { Utils.toast('Erro: ' + e.message, 'error'); }
+    finally { btn.disabled = false; }
   }
 
-  // ──────────────────────────────────────────
-  // MODAL REGISTRO TÉCNICO (simplificado)
-  // ──────────────────────────────────────────
-  function abrirModalRegistroTecnico(planoId, atId) {
-    const at = atividadesPA.find(x => String(x.id) === String(atId));
-    if (!at) return;
-
-    // Reutiliza o modal de atividade mas com campos restritos
-    evidenciasTemp = [];
-
-    Utils.el('atpa-id').value          = at.id;
-    Utils.el('atpa-plano-id').value    = planoId;
-    Utils.el('atpa-desc').value        = at.descricao || '';
-    Utils.el('atpa-desc').readOnly     = true;
-    Utils.el('atpa-pct').value         = at.pct_concluida || 0;
-    Utils.el('atpa-inicio').value      = at.dt_inicio || '';
-    Utils.el('atpa-prazo').value       = at.prazo || '';
-    Utils.el('atpa-conclusao').value   = at.dt_conclusao || '';
-    Utils.el('atpa-status').value      = at.status || 'Não iniciada';
-    Utils.el('atpa-comentarios').value = at.comentarios || '';
-    Utils.el('atpa-fotos-grid').innerHTML = '';
-
-    // Bloquear campos que técnico não pode alterar
-    Utils.el('atpa-desc').style.background   = 'var(--gray-50)';
-    Utils.el('atpa-inicio').readOnly          = true;
-    Utils.el('atpa-prazo').readOnly           = true;
-
-    // Esconder campo de responsável (técnico não troca responsável)
-    const respGroup = Utils.el('atpa-resp')?.closest('.form-group');
-    if (respGroup) respGroup.style.display = 'none';
-
-    Utils.el('modal-atpa-title').textContent = '📋 Registrar Andamento';
-    Utils.openModal('modal-atividade-pa');
-  }
-
-  // ──────────────────────────────────────────
-  // MODAL ATIVIDADE PA
-  // ──────────────────────────────────────────
-  function abrirModalAtividadePA(planoId, atId = null) {
+  // ════════════════════════════════════════
+  // MODAL ATIVIDADE (supervisor adiciona)
+  // ════════════════════════════════════════
+  function abrirModalAtPA(planoId, atId = null) {
     const at = atId ? atividadesPA.find(x => String(x.id) === String(atId)) : null;
     evidenciasTemp = [];
 
-    // Garantir campos desbloqueados para supervisor/admin
+    // Desbloquear campos
     ['atpa-desc','atpa-inicio','atpa-prazo'].forEach(id => {
-      const el = Utils.el(id);
-      if (el) { el.readOnly = false; el.style.background = ''; }
+      const el = Utils.el(id); if (el) { el.readOnly = false; el.style.background = ''; }
     });
     const respGroup = Utils.el('atpa-resp')?.closest('.form-group');
     if (respGroup) respGroup.style.display = '';
 
-    // Responsáveis
     const sel = Utils.el('atpa-resp');
     if (sel) {
       sel.innerHTML = '<option value="">— Selecione —</option>' +
-        profissionais.map(u => `<option value="${u.id}" ${at?.responsavel_id === u.id ? 'selected':''}>${u.nome}</option>`).join('');
+        profissionais.map(u => `<option value="${u.id}" ${at?.responsavel_id===u.id?'selected':''}>${u.nome} (${u.funcao||u.perfil})</option>`).join('');
     }
 
-    Utils.el('atpa-id').value          = at?.id || '';
-    Utils.el('atpa-plano-id').value    = planoId;
-    Utils.el('atpa-desc').value        = at?.descricao || '';
-    Utils.el('atpa-pct').value         = at?.pct_concluida || 0;
-    Utils.el('atpa-inicio').value      = at?.dt_inicio || '';
-    Utils.el('atpa-prazo').value       = at?.prazo || '';
-    Utils.el('atpa-conclusao').value   = at?.dt_conclusao || '';
-    Utils.el('atpa-status').value      = at?.status || 'Não iniciada';
-    Utils.el('atpa-comentarios').value = at?.comentarios || '';
+    Utils.el('atpa-id').value           = at?.id || '';
+    Utils.el('atpa-plano-id').value     = planoId;
+    Utils.el('atpa-desc').value         = at?.descricao || '';
+    Utils.el('atpa-pct').value          = at?.pct_concluida || 0;
+    Utils.el('atpa-inicio').value       = at?.dt_inicio || '';
+    Utils.el('atpa-prazo').value        = at?.prazo || '';
+    Utils.el('atpa-conclusao').value    = at?.dt_conclusao || '';
+    Utils.el('atpa-status').value       = at?.status || 'Não iniciada';
+    Utils.el('atpa-comentarios').value  = at?.comentarios || '';
     Utils.el('atpa-fotos-grid').innerHTML = '';
 
     Utils.el('modal-atpa-title').textContent = at ? 'Editar Atividade' : 'Nova Atividade';
@@ -643,76 +599,128 @@
     btn.disabled = true;
     Utils.showLoading('Salvando...');
     try {
-      // Upload evidências
       const links = [];
       for (const ev of evidenciasTemp) {
-        try {
-          const res = await API.uploadFotoPA(ev.base64, ev.mimeType, Utils.el('atpa-plano-id').value);
-          links.push(res.url);
-        } catch {}
+        try { const r = await API.uploadFotoPA(ev.base64, ev.mimeType, Utils.el('atpa-plano-id').value); links.push(r.url); } catch {}
       }
-
       await API.saveAtividadePA({
         id:             Utils.el('atpa-id').value,
         plano_id:       Utils.el('atpa-plano-id').value,
         descricao:      Utils.el('atpa-desc').value.trim(),
         responsavel_id: Utils.el('atpa-resp').value,
-        pct_concluida:  parseInt(Utils.el('atpa-pct').value) || 0,
+        pct_concluida:  parseInt(Utils.el('atpa-pct').value)||0,
         dt_inicio:      Utils.el('atpa-inicio').value,
         prazo:          Utils.el('atpa-prazo').value,
         dt_conclusao:   Utils.el('atpa-conclusao').value,
         status:         Utils.el('atpa-status').value,
         comentarios:    Utils.el('atpa-comentarios').value.trim(),
         evidencias:     JSON.stringify(links),
+        criado_por:     session.id,
       });
-
       Utils.closeModal('modal-atividade-pa');
       Utils.toast('Atividade salva!', 'success');
       await carregarTudo(true);
-      if (planoAtual) renderDetalhe(planos.find(p => String(p.id) === String(planoAtual.id)) || planoAtual);
-    } catch (e) {
-      Utils.toast('Erro: ' + e.message, 'error');
-    } finally {
-      Utils.hideLoading();
-      btn.disabled = false;
-    }
+      if (planoAtual) { planoAtual = planos.find(p=>String(p.id)===String(planoAtual.id))||planoAtual; renderDetalhe(planoAtual); }
+    } catch(e) { Utils.toast('Erro: ' + e.message, 'error'); }
+    finally { Utils.hideLoading(); btn.disabled = false; }
   }
 
-  async function deletarAtividadePA(id) {
+  // ════════════════════════════════════════
+  // MODAL PROGRESSO TÉCNICO
+  // ════════════════════════════════════════
+  function abrirModalProgresso(atId) {
+    const at = atividadesPA.find(x => String(x.id) === String(atId));
+    if (!at) return;
+    evidenciasTemp = [];
+
+    // Bloquear campos que técnico não altera
+    const sel = Utils.el('atpa-resp');
+    if (sel) {
+      sel.innerHTML = `<option value="${at.responsavel_id}">${profissionais.find(u=>String(u.id)===String(at.responsavel_id))?.nome||'—'}</option>`;
+    }
+    const respGroup = Utils.el('atpa-resp')?.closest('.form-group');
+    if (respGroup) respGroup.style.display = 'none';
+
+    const descEl = Utils.el('atpa-desc');
+    if (descEl) { descEl.value = at.descricao; descEl.readOnly = true; descEl.style.background = 'var(--gray-50)'; }
+    const inicioEl = Utils.el('atpa-inicio');
+    if (inicioEl) { inicioEl.readOnly = true; inicioEl.style.background = 'var(--gray-50)'; }
+    const prazoEl = Utils.el('atpa-prazo');
+    if (prazoEl) { prazoEl.readOnly = true; prazoEl.style.background = 'var(--gray-50)'; }
+
+    Utils.el('atpa-id').value           = at.id;
+    Utils.el('atpa-plano-id').value     = at.plano_id;
+    Utils.el('atpa-inicio').value       = at.dt_inicio || '';
+    Utils.el('atpa-prazo').value        = at.prazo || '';
+    Utils.el('atpa-pct').value          = at.pct_concluida || 0;
+    Utils.el('atpa-conclusao').value    = at.dt_conclusao || '';
+    Utils.el('atpa-status').value       = at.status || 'Não iniciada';
+    Utils.el('atpa-comentarios').value  = at.comentarios || '';
+    Utils.el('atpa-fotos-grid').innerHTML = '';
+
+    Utils.el('modal-atpa-title').textContent = '📝 Registrar Andamento';
+    Utils.openModal('modal-atividade-pa');
+
+    // Override submit para usar registrarProgressoPA
+    Utils.el('form-atpa').onsubmit = async (e) => {
+      e.preventDefault();
+      const btn = Utils.el('btn-salvar-atpa');
+      btn.disabled = true;
+      Utils.showLoading('Salvando...');
+      try {
+        const links = [];
+        for (const ev of evidenciasTemp) {
+          try { const r = await API.uploadFotoPA(ev.base64, ev.mimeType, at.plano_id); links.push(r.url); } catch {}
+        }
+        await API.registrarProgressoPA({
+          id:           at.id,
+          pct_concluida:parseInt(Utils.el('atpa-pct').value)||0,
+          status:       Utils.el('atpa-status').value,
+          comentarios:  Utils.el('atpa-comentarios').value.trim(),
+          dt_conclusao: Utils.el('atpa-conclusao').value,
+          evidencias:   links.length ? JSON.stringify(links) : undefined,
+        });
+        Utils.closeModal('modal-atividade-pa');
+        Utils.toast('Andamento registrado!', 'success');
+        // Restaurar submit padrão
+        Utils.el('form-atpa').onsubmit = null;
+        Utils.el('form-atpa').addEventListener('submit', async ev => { ev.preventDefault(); await salvarAtividadePA(); });
+        await carregarTudo(true);
+        if (planoAtual) { planoAtual = planos.find(p=>String(p.id)===String(planoAtual.id))||planoAtual; renderDetalhe(planoAtual); }
+      } catch(e) { Utils.toast('Erro: ' + e.message, 'error'); }
+      finally { Utils.hideLoading(); btn.disabled = false; }
+    };
+  }
+
+  async function deletarAt(atId) {
     if (!confirm('Excluir esta atividade?')) return;
     try {
-      await API.deletarAtividadePA(id);
+      await API.deletarAtividadePA(atId);
       Utils.toast('Excluída!', 'success');
       await carregarTudo(true);
-      if (planoAtual) renderDetalhe(planos.find(p => String(p.id) === String(planoAtual.id)) || planoAtual);
-    } catch (e) { Utils.toast('Erro: ' + e.message, 'error'); }
+      if (planoAtual) { planoAtual = planos.find(p=>String(p.id)===String(planoAtual.id))||planoAtual; renderDetalhe(planoAtual); }
+    } catch(e) { Utils.toast('Erro: ' + e.message, 'error'); }
   }
 
-  async function mudarStatusPlano(planoId, novoStatus) {
-    try {
-      await API.mudarStatusPlano({ id: planoId, status: novoStatus });
-      Utils.toast(`Plano movido para: ${novoStatus}`, 'success');
-      await carregarTudo(true);
-      const pAtualizado = planos.find(p => String(p.id) === String(planoId));
-      if (pAtualizado) { planoAtual = pAtualizado; renderDetalhe(pAtualizado); }
-    } catch (e) { Utils.toast('Erro: ' + e.message, 'error'); }
-  }
-
-  // ──────────────────────────────────────────
+  // ════════════════════════════════════════
   // APROVAÇÃO
-  // ──────────────────────────────────────────
+  // ════════════════════════════════════════
   function abrirModalAprovacao(planoId) {
     decidedStatus = null;
-    Utils.el('aprov-plano-id').value    = planoId;
-    Utils.el('aprov-comentario').value  = '';
-    document.querySelectorAll('#btn-aprovar, #btn-reprovar').forEach(b => b.className = 'status-btn');
+    Utils.el('aprov-plano-id').value   = planoId;
+    Utils.el('aprov-comentario').value = '';
+    ['btn-aprovar','btn-reprovar'].forEach(id => {
+      const el = Utils.el(id); if (el) el.className = 'status-btn';
+    });
     Utils.openModal('modal-aprovacao');
   }
 
   window.selecionarDecisao = (d) => {
     decidedStatus = d;
-    Utils.el('btn-aprovar').className  = 'status-btn' + (d === 'Aprovado'  ? ' active-ok'  : '');
-    Utils.el('btn-reprovar').className = 'status-btn' + (d === 'Reprovado' ? ' active-nok' : '');
+    const ok  = Utils.el('btn-aprovar');
+    const nok = Utils.el('btn-reprovar');
+    if (ok)  ok.className  = 'status-btn' + (d==='Aprovado'  ? ' active-ok'  : '');
+    if (nok) nok.className = 'status-btn' + (d==='Reprovado' ? ' active-nok' : '');
   };
 
   async function confirmarAprovacao() {
@@ -725,39 +733,83 @@
         aprovador_id: session.id,
         decisao:      decidedStatus,
         comentario:   Utils.el('aprov-comentario').value.trim(),
-        dt_aprovacao: new Date().toISOString().slice(0,10),
       });
-      if (decidedStatus === 'Aprovado') {
-        await API.mudarStatusPlano({ id: Utils.el('aprov-plano-id').value, status: 'Concluído' });
-      }
       Utils.closeModal('modal-aprovacao');
       Utils.toast('Aprovação registrada!', 'success');
       await carregarTudo(true);
-      if (planoAtual) renderDetalhe(planos.find(p => String(p.id) === String(planoAtual.id)) || planoAtual);
-    } catch (e) { Utils.toast('Erro: ' + e.message, 'error'); }
+      if (planoAtual) { planoAtual = planos.find(p=>String(p.id)===String(planoAtual.id))||planoAtual; renderDetalhe(planoAtual); }
+    } catch(e) { Utils.toast('Erro: ' + e.message, 'error'); }
     finally { btn.disabled = false; }
   }
 
-  // ──────────────────────────────────────────
+  // ════════════════════════════════════════
+  // STATUS / ENCERRAMENTO
+  // ════════════════════════════════════════
+  async function mudarStatus(planoId, novoStatus) {
+    try {
+      await API.mudarStatusPlano({ id: planoId, status: novoStatus });
+      Utils.toast('Status atualizado: ' + novoStatus, 'success');
+      await carregarTudo(true);
+      if (planoAtual) { planoAtual = planos.find(p=>String(p.id)===String(planoAtual.id))||planoAtual; renderDetalhe(planoAtual); }
+    } catch(e) { Utils.toast('Erro: ' + e.message, 'error'); }
+  }
+
+  function abrirEncerramento(planoId) {
+    const obs = prompt('Observação de encerramento (opcional):') ?? null;
+    if (obs === null) return;
+    const tipo = confirm('Encerrar como CONCLUÍDO?\n\nOK = Concluído\nCancelar = Cancelado');
+    if (!confirm(`Confirmar encerramento definitivo?\n\nEsta ação bloqueia o plano e todas as atividades para edição.`)) return;
+    API.encerrarPlano({ id: planoId, status: tipo ? 'Concluído' : 'Cancelado', obs_encerramento: obs })
+      .then(async () => {
+        Utils.toast('Plano encerrado!', 'success');
+        await carregarTudo(true);
+        if (planoAtual) { planoAtual = planos.find(p=>String(p.id)===String(planoAtual.id))||planoAtual; renderDetalhe(planoAtual); }
+      })
+      .catch(e => Utils.toast('Erro: ' + e.message, 'error'));
+  }
+
+  // ════════════════════════════════════════
+  // HISTÓRICO
+  // ════════════════════════════════════════
+  async function carregarHistorico(planoId) {
+    const box = Utils.el('pa-historico-content');
+    if (!box) return;
+    box.innerHTML = '<div class="text-muted text-sm">Carregando...</div>';
+    try {
+      const res  = await API.getHistoricoPA(planoId);
+      const hist = res.historico || [];
+      box.innerHTML = hist.length ? hist.map(h => {
+        const u = profissionais.find(x => String(x.id) === String(h.usuario_id));
+        return `<div class="pa-hist-item">
+          <div class="pa-hist-dot"></div>
+          <div>
+            <div class="pa-hist-acao">${h.acao}</div>
+            <div class="pa-hist-meta">${u?.nome||'—'} · ${Utils.fmtDateTime(h.dt_registro)}</div>
+            ${h.detalhe ? `<div class="pa-hist-detalhe">${h.detalhe}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('') : '<p class="text-muted text-sm">Nenhum registro.</p>';
+    } catch(e) { box.innerHTML = `<div class="alert alert-danger">Erro: ${e.message}</div>`; }
+  }
+
+  // ════════════════════════════════════════
   // EVIDÊNCIAS
-  // ──────────────────────────────────────────
+  // ════════════════════════════════════════
   async function handleEvidencias() {
     const input = Utils.el('atpa-fotos');
     const grid  = Utils.el('atpa-fotos-grid');
     if (!input || !grid) return;
-    const files = Array.from(input.files).slice(0, 5);
-    for (const file of files) {
+    for (const file of Array.from(input.files).slice(0, 5)) {
       const base64 = await Utils.fileToBase64(file);
-      evidenciasTemp.push({ base64, mimeType: file.type, name: file.name });
-      const isPDF = file.type === 'application/pdf';
-      const wrap  = document.createElement('div');
-      if (isPDF) {
-        wrap.className = 'evidencia-pdf';
-        wrap.innerHTML = '<span>📄</span><span style="font-size:.6rem;">' + file.name.slice(0,10) + '</span>';
+      evidenciasTemp.push({ base64, mimeType: file.type });
+      const wrap = document.createElement('div');
+      wrap.className = 'photo-thumb-wrap';
+      if (file.type === 'application/pdf') {
+        wrap.innerHTML = `<div class="evidencia-pdf">📄</div>`;
       } else {
-        wrap.className = 'evidencia-item';
         const img = document.createElement('img');
         img.src = URL.createObjectURL(file);
+        img.className = 'photo-thumb';
         wrap.appendChild(img);
       }
       grid.appendChild(wrap);
@@ -765,46 +817,54 @@
     input.value = '';
   }
 
-  // ──────────────────────────────────────────
+  // ════════════════════════════════════════
   // HELPERS
-  // ──────────────────────────────────────────
+  // ════════════════════════════════════════
+  function voltarLista() {
+    planoAtual = null;
+    Utils.el('view-detalhe').classList.add('hidden');
+    Utils.el('view-lista').classList.remove('hidden');
+    Utils.el('topbar-title').textContent = 'Planos de Ação';
+    renderLista();
+  }
+
   function calcPrazo(p) {
-    if (!p.prazo || p.status === 'Concluído' || p.status === 'Cancelado')
-      return { label: p.status === 'Concluído' ? '✅ Concluído' : p.status || '—', cls: 'prazo-ok', tipo: 'ok' };
+    if (!p.prazo || p.status==='Concluído'||p.status==='Cancelado')
+      return { label: p.status||'—', cls:'prazo-ok', tipo:'ok' };
     const dias = Math.ceil((new Date(p.prazo) - new Date()) / 86400000);
-    if (dias < 0)  return { label: `🔴 ${Math.abs(dias)}d atraso`, cls: 'prazo-atraso', tipo: 'atraso' };
-    if (dias <= 3) return { label: `🟡 Vence em ${dias}d`,         cls: 'prazo-urgente', tipo: 'urgente' };
-    return             { label: `🟢 ${dias}d restantes`,           cls: 'prazo-ok', tipo: 'ok' };
+    if (dias < 0)  return { label: `🔴 ${Math.abs(dias)}d atraso`, cls:'prazo-atraso', tipo:'atraso' };
+    if (dias <= 3) return { label: `🟡 ${dias}d`,                   cls:'prazo-urgente', tipo:'urgente' };
+    return             { label: `🟢 ${dias}d`,                      cls:'prazo-ok', tipo:'ok' };
   }
 
   function calcPrazoAt(a) {
-    if (!a.prazo || a.status === 'Concluída')
-      return { label: a.status === 'Concluída' ? '✅' : '—', cls: 'prazo-ok', tipo: 'ok' };
+    if (!a.prazo || a.status==='Concluída'||a.status==='Cancelada')
+      return { label: a.status==='Concluída'?'✅':'—', cls:'prazo-ok', tipo:'ok' };
     const dias = Math.ceil((new Date(a.prazo) - new Date()) / 86400000);
-    if (dias < 0)  return { label: `${Math.abs(dias)}d atraso`, cls: 'prazo-atraso', tipo: 'atraso' };
-    if (dias <= 3) return { label: `${dias}d`,                  cls: 'prazo-urgente', tipo: 'urgente' };
-    return             { label: `${dias}d`,                     cls: 'prazo-ok', tipo: 'ok' };
+    if (dias < 0)  return { label: `${Math.abs(dias)}d atraso`, cls:'prazo-atraso', tipo:'atraso' };
+    if (dias <= 3) return { label: `${dias}d`,                   cls:'prazo-urgente', tipo:'urgente' };
+    return             { label: `${dias}d`,                      cls:'prazo-ok', tipo:'ok' };
   }
 
-  function calcPctPlano(ats) {
+  function calcPct(ats) {
     if (!ats.length) return 0;
-    return Math.round(ats.reduce((s, a) => s + (parseInt(a.pct_concluida) || 0), 0) / ats.length);
+    return Math.round(ats.reduce((s,a) => s + (parseInt(a.pct_concluida)||0), 0) / ats.length);
   }
 
-  function prioridadeBadgePA(p) {
-    const m = { Baixa:'badge-success', Média:'badge-info', Alta:'badge-warning', Crítica:'badge-danger' };
+  function badgePrio(p) {
+    const m = {Baixa:'badge-success',Média:'badge-info',Alta:'badge-warning',Crítica:'badge-danger'};
     return `<span class="badge ${m[p]||'badge-gray'}">${p||'—'}</span>`;
   }
 
-  function statusBadgePA(s) {
-    const m = {
-      'Aberto':               'badge-info',
-      'Em andamento':         'badge-primary',
-      'Aguardando aprovação': 'badge-warning',
-      'Concluído':            'badge-success',
-      'Cancelado':            'badge-gray',
-    };
+  function badgeStatus(s) {
+    const m = {'Aberto':'badge-info','Em andamento':'badge-primary','Aguardando aprovação':'badge-warning','Concluído':'badge-success','Cancelado':'badge-gray'};
     return `<span class="badge ${m[s]||'badge-gray'}">${s||'—'}</span>`;
   }
 
+  function paInfoRow(label, val) {
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray-50);">
+      <span style="font-size:.72rem;color:var(--gray-400);">${label}</span>
+      <span style="font-size:.8rem;font-weight:500;text-align:right;">${val||'—'}</span>
+    </div>`;
+  }
 })();
