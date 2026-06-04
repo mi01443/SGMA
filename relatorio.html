@@ -6,37 +6,121 @@
   <title>SGMA — Relatórios</title>
   <link rel="stylesheet" href="assets/css/main.css">
   <link rel="stylesheet" href="assets/css/app.css">
+  <style>
+    /* ── Relatório CSS inline ── */
+    .rel-config-panel { display:grid; grid-template-columns:300px 1fr; gap:1.25rem; align-items:flex-start; }
+    .rel-sidebar { position:sticky; top:76px; }
+
+    /* Seções selecionáveis */
+    .rel-section-toggle { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1.5px solid var(--gray-200); border-radius:var(--radius); cursor:pointer; transition:all var(--transition); margin-bottom:6px; background:#fff; }
+    .rel-section-toggle:hover { border-color:var(--primary); background:var(--primary-light); }
+    .rel-section-toggle.active { border-color:var(--primary); background:var(--primary-light); }
+    .rel-section-toggle input[type=checkbox] { width:16px; height:16px; accent-color:var(--primary); flex-shrink:0; }
+    .rel-section-icon { font-size:1.1rem; }
+    .rel-section-lbl  { font-size:.8125rem; font-weight:600; color:var(--gray-700); }
+    .rel-section-sub  { font-size:.7rem; color:var(--gray-400); }
+
+    /* Output do relatório */
+    #relatorio-output { min-height:200px; }
+
+    /* Seção do relatório */
+    .rel-section { margin-bottom:1.5rem; break-inside:avoid; }
+    .rel-section-header { display:flex; align-items:center; gap:10px; margin-bottom:1rem; padding-bottom:.75rem; border-bottom:2px solid var(--primary); }
+    .rel-section-header h2 { font-size:1rem; font-weight:700; color:var(--gray-900); }
+    .rel-section-header .rel-badge { background:var(--primary); color:#fff; padding:2px 10px; border-radius:99px; font-size:.72rem; font-weight:700; }
+
+    /* KPI cards no relatório */
+    .rel-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:1rem; }
+    .rel-kpi { background:#fff; border:1px solid var(--gray-200); border-radius:var(--radius); padding:.875rem 1rem; text-align:center; border-top:3px solid var(--primary); }
+    .rel-kpi-num { font-size:1.75rem; font-weight:700; letter-spacing:-.02em; color:var(--gray-900); }
+    .rel-kpi-lbl { font-size:.65rem; color:var(--gray-400); font-weight:600; text-transform:uppercase; letter-spacing:.05em; margin-top:3px; }
+    .rel-kpi.success  { border-top-color:var(--success); } .rel-kpi.success .rel-kpi-num  { color:var(--success); }
+    .rel-kpi.danger   { border-top-color:var(--danger);  } .rel-kpi.danger  .rel-kpi-num  { color:var(--danger); }
+    .rel-kpi.warning  { border-top-color:var(--warning); } .rel-kpi.warning .rel-kpi-num  { color:var(--warning); }
+    .rel-kpi.info     { border-top-color:var(--info);    } .rel-kpi.info    .rel-kpi-num  { color:var(--info); }
+
+    /* HH bar */
+    .rel-hh-bar { height:14px; background:var(--gray-100); border-radius:99px; overflow:hidden; position:relative; margin:6px 0; }
+    .rel-hh-prog { position:absolute; left:0; top:0; bottom:0; border-radius:99px; }
+
+    /* Tabela do relatório */
+    .rel-table { width:100%; border-collapse:collapse; font-size:.8rem; margin-bottom:.5rem; }
+    .rel-table th { background:var(--gray-900); color:#fff; padding:8px 12px; text-align:left; font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+    .rel-table td { padding:8px 12px; border-bottom:1px solid var(--gray-100); vertical-align:middle; }
+    .rel-table tr:hover td { background:var(--gray-50); }
+    .rel-table tr:last-child td { border-bottom:none; }
+
+    /* Motivos bar */
+    .rel-motivo-bar { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--gray-100); }
+    .rel-motivo-bar:last-child { border-bottom:none; }
+    .rel-motivo-fill { height:8px; border-radius:99px; background:var(--danger); transition:width .4s; }
+    .rel-motivo-num  { font-size:.72rem; font-weight:700; color:var(--danger); white-space:nowrap; }
+
+    /* Atividade detail row */
+    .rel-at-row { padding:10px 0; border-bottom:1px solid var(--gray-100); }
+    .rel-at-row:last-child { border-bottom:none; }
+    .rel-at-equip { font-weight:600; font-size:.875rem; }
+    .rel-at-desc  { font-size:.8rem; color:var(--gray-500); margin-top:2px; }
+    .rel-at-meta  { display:flex; flex-wrap:wrap; gap:10px; font-size:.72rem; color:var(--gray-400); margin-top:5px; }
+    .rel-at-obs   { font-size:.775rem; background:var(--gray-50); padding:6px 10px; border-left:2px solid var(--gray-300); border-radius:0 4px 4px 0; margin-top:6px; }
+    .rel-at-motivo{ display:inline-flex; align-items:center; gap:6px; background:var(--danger-light); color:var(--danger); padding:3px 10px; border-radius:99px; font-size:.72rem; font-weight:600; margin-top:4px; }
+
+    /* Plano de ação no relatório */
+    .rel-plano-card { border:1px solid var(--gray-200); border-radius:var(--radius); padding:.875rem; margin-bottom:8px; border-left:4px solid var(--primary); }
+    .rel-plano-titulo { font-weight:700; font-size:.9rem; margin-bottom:4px; }
+    .rel-plano-meta   { font-size:.72rem; color:var(--gray-400); display:flex; flex-wrap:wrap; gap:10px; }
+    .rel-plano-pct    { font-size:.72rem; font-weight:700; }
+
+    /* Botões de ação flutuantes */
+    .rel-action-bar { display:flex; gap:10px; margin-bottom:1.25rem; flex-wrap:wrap; }
+    .rel-action-bar .btn { gap:8px; }
+
+    /* Hero do relatório gerado */
+    .rel-hero { background:linear-gradient(135deg,var(--gray-900) 0%,#1e3a5f 100%); color:#fff; border-radius:var(--radius-lg); padding:1.5rem; margin-bottom:1.5rem; }
+    .rel-hero-title { font-size:1.25rem; font-weight:700; margin-bottom:4px; }
+    .rel-hero-sub   { font-size:.8125rem; color:rgba(255,255,255,.6); margin-bottom:1rem; }
+    .rel-hero-kpis  { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px; }
+    .rel-hero-kpi   { background:rgba(255,255,255,.08); border-radius:var(--radius); padding:.75rem; text-align:center; }
+    .rel-hero-kpi-num { font-size:1.5rem; font-weight:700; }
+    .rel-hero-kpi-lbl { font-size:.65rem; color:rgba(255,255,255,.5); font-weight:600; text-transform:uppercase; letter-spacing:.05em; margin-top:2px; }
+
+    @media (max-width:900px) {
+      .rel-config-panel { grid-template-columns:1fr; }
+      .rel-sidebar { position:static; }
+    }
+    @media (max-width:600px) {
+      .rel-kpi-grid { grid-template-columns:repeat(2,1fr); }
+      .rel-hero-kpis { grid-template-columns:repeat(2,1fr); }
+    }
+    @media print {
+      .sidebar, .topbar, .rel-sidebar, .rel-action-bar, #rel-actions { display:none !important; }
+      .main-content { margin-left:0 !important; }
+      .rel-config-panel { display:block; }
+    }
+  </style>
 </head>
 <body>
 <div class="app-layout">
-
   <div class="sidebar-overlay"></div>
 
   <aside class="sidebar">
-        <div class="sidebar-logo">
-      <div class="sidebar-logo-text" style="line-height:1.1;">
-        <span style="font-size:1rem;font-weight:700;letter-spacing:3px;color:#fff;">SGMA</span>
-        <span style="display:block;font-size:.65rem;font-weight:400;color:var(--gray-400);letter-spacing:.5px;margin-top:2px;">Ger. de Manutenção</span>
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-text">
+        <div class="logo-name">SGMA</div>
+        <div class="logo-sub">Ger. de Manutenção</div>
       </div>
     </div>
-
     <nav class="sidebar-nav">
       <div class="nav-section">Sistema</div>
-      <a class="nav-item" href="app.html">
-        Atividades
-      </a>
-      <a class="nav-item active" href="relatorio.html">
-        Relatórios
-      </a>
-      <a class="nav-item" href="admin.html">
-        Administração
-      </a>
+      <a class="nav-item" href="app.html">Atividades</a>
+      <a class="nav-item active" href="relatorio.html">Relatórios</a>
+      <a class="nav-item" href="plano-acao.html">Plano de Ação</a>
+      <a class="nav-item" href="admin.html">Administração</a>
     </nav>
-
     <div class="sidebar-user">
       <div class="user-info">
-        <div class="user-name" id="user-name">Carregando...</div>
-        <div class="user-role" id="user-role"></div>
+        <div class="user-name" id="user-name">—</div>
+        <div class="user-role" id="user-role">—</div>
       </div>
       <button class="logout-btn" title="Sair">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -51,11 +135,8 @@
       </button>
       <span class="topbar-title">Relatório de Manutenção</span>
       <div class="topbar-actions" id="rel-actions" style="display:none;">
-        <button class="btn btn-secondary btn-sm" id="btn-pdf" style="gap:6px;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          PDF
-        </button>
-        <button class="btn btn-success btn-sm" id="btn-whatsapp" style="gap:6px;">
+        <button class="btn btn-secondary btn-sm" id="btn-pdf">📄 PDF</button>
+        <button class="btn btn-success btn-sm" id="btn-whatsapp">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.121 1.533 5.848L.054 23.27l5.538-1.454A11.938 11.938 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.012-1.374l-.36-.213-3.288.863.878-3.207-.233-.37A9.818 9.818 0 012.182 12C2.182 6.571 6.571 2.182 12 2.182S21.818 6.571 21.818 12 17.429 21.818 12 21.818z"/></svg>
           WhatsApp
         </button>
@@ -63,40 +144,102 @@
     </header>
 
     <div class="page-content">
-      <!-- Filtros -->
-      <div class="card mb-3">
-        <div class="card-header"><span class="card-title">🔍 Filtros do Relatório</span></div>
-        <div class="form-row" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
-          <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Semana</label>
-            <select id="filtro-semana" class="form-control"></select>
-          </div>
-          <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Data início</label>
-            <input type="date" id="filtro-inicio" class="form-control">
-          </div>
-          <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Data fim</label>
-            <input type="date" id="filtro-fim" class="form-control">
-          </div>
-          <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Técnico</label>
-            <select id="filtro-tecnico" class="form-control"></select>
-          </div>
-        </div>
-        <div style="margin-top:1rem;display:flex;justify-content:flex-end;">
-          <button class="btn btn-primary" id="btn-gerar">📊 Gerar Relatório</button>
-        </div>
-      </div>
+      <div class="rel-config-panel">
 
-      <!-- Output -->
-      <div id="relatorio-output"></div>
+        <!-- Painel lateral: filtros + seções -->
+        <div class="rel-sidebar">
+          <!-- Filtros -->
+          <div class="card mb-3">
+            <div class="card-header"><span class="card-title">🔍 Filtros</span></div>
+            <div class="form-group">
+              <label class="form-label">Semana</label>
+              <select id="filtro-semana" class="form-control">
+                <option value="">Todas as semanas</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data início</label>
+              <input type="date" id="filtro-inicio" class="form-control">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data fim</label>
+              <input type="date" id="filtro-fim" class="form-control">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Técnico</label>
+              <select id="filtro-tecnico" class="form-control">
+                <option value="">Todos os técnicos</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Seções selecionáveis -->
+          <div class="card mb-3">
+            <div class="card-header"><span class="card-title">📋 Seções do Relatório</span></div>
+            <p class="text-muted text-xs mb-2">Selecione o que incluir:</p>
+
+            <label class="rel-section-toggle active">
+              <input type="checkbox" id="sec-resumo" checked>
+              <span class="rel-section-icon">📊</span>
+              <div><div class="rel-section-lbl">Resumo HH</div><div class="rel-section-sub">Horas disponíveis, programadas e realizadas</div></div>
+            </label>
+            <label class="rel-section-toggle active">
+              <input type="checkbox" id="sec-executadas" checked>
+              <span class="rel-section-icon">✅</span>
+              <div><div class="rel-section-lbl">Executadas</div><div class="rel-section-sub">Atividades concluídas</div></div>
+            </label>
+            <label class="rel-section-toggle active">
+              <input type="checkbox" id="sec-nao-realizadas" checked>
+              <span class="rel-section-icon">❌</span>
+              <div><div class="rel-section-lbl">Não realizadas</div><div class="rel-section-sub">Com motivo de não execução</div></div>
+            </label>
+            <label class="rel-section-toggle active">
+              <input type="checkbox" id="sec-fora-prog" checked>
+              <span class="rel-section-icon">🔧</span>
+              <div><div class="rel-section-lbl">Fora de programação</div><div class="rel-section-sub">Emergências e oportunidades</div></div>
+            </label>
+            <label class="rel-section-toggle active">
+              <input type="checkbox" id="sec-ver-agir" checked>
+              <span class="rel-section-icon">👁</span>
+              <div><div class="rel-section-lbl">Ver e Agir</div><div class="rel-section-sub">Identificadas e resolvidas na hora</div></div>
+            </label>
+            <label class="rel-section-toggle active">
+              <input type="checkbox" id="sec-motivos" checked>
+              <span class="rel-section-icon">📈</span>
+              <div><div class="rel-section-lbl">Análise de motivos</div><div class="rel-section-sub">Ranking de causas de não execução</div></div>
+            </label>
+            <label class="rel-section-toggle">
+              <input type="checkbox" id="sec-planos">
+              <span class="rel-section-icon">🗂</span>
+              <div><div class="rel-section-lbl">Planos de Ação</div><div class="rel-section-sub">Status dos planos do período</div></div>
+            </label>
+          </div>
+
+          <button class="btn btn-primary btn-block" id="btn-gerar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            Gerar Relatório
+          </button>
+        </div>
+
+        <!-- Área do relatório -->
+        <div>
+          <!-- Placeholder inicial -->
+          <div id="rel-placeholder" class="card" style="text-align:center;padding:3rem;">
+            <div style="font-size:3rem;margin-bottom:12px;">📊</div>
+            <h2 style="color:var(--gray-600);margin-bottom:6px;">Relatório pronto para gerar</h2>
+            <p class="text-muted text-sm">Configure os filtros e seções ao lado, depois clique em <strong>Gerar Relatório</strong>.</p>
+          </div>
+
+          <!-- Output gerado -->
+          <div id="relatorio-output" class="hidden"></div>
+        </div>
+
+      </div>
     </div>
   </div>
 </div>
 
 <div id="toast-container"></div>
-
 <script src="assets/js/api.js"></script>
 <script src="assets/js/utils.js"></script>
 <script src="assets/js/auth.js"></script>
