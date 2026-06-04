@@ -628,37 +628,62 @@
   // ════════════════════════════════════════
   // MODAL PROGRESSO TÉCNICO
   // ════════════════════════════════════════
+  // Converte qualquer formato de data para YYYY-MM-DD (para input type=date)
+  function toInputDate(val) {
+    if (!val || String(val).trim() === '') return '';
+    const s = String(val).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    if (s.includes('T') || s.includes('Z')) {
+      const d = new Date(s);
+      if (!isNaN(d)) {
+        return d.getUTCFullYear() + '-' +
+               String(d.getUTCMonth()+1).padStart(2,'0') + '-' +
+               String(d.getUTCDate()).padStart(2,'0');
+      }
+    }
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+      const p = s.split('/');
+      return p[2]+'-'+p[1]+'-'+p[0];
+    }
+    return '';
+  }
+
   function abrirModalProgresso(atId) {
     const at = atividadesPA.find(x => String(x.id) === String(atId));
     if (!at) return;
     evidenciasTemp = [];
 
-    // Bloquear campos que técnico não altera
-    const sel = Utils.el('atpa-resp');
-    if (sel) {
-      sel.innerHTML = `<option value="${at.responsavel_id}">${profissionais.find(u=>String(u.id)===String(at.responsavel_id))?.nome||'—'}</option>`;
-    }
+    // ── 1. Preencher TODOS os valores primeiro ──
+    Utils.el('atpa-id').value          = at.id;
+    Utils.el('atpa-plano-id').value    = at.plano_id;
+    Utils.el('atpa-pct').value         = at.pct_concluida || 0;
+    Utils.el('atpa-conclusao').value   = toInputDate(at.dt_conclusao);
+    Utils.el('atpa-status').value      = at.status || 'Não iniciada';
+    Utils.el('atpa-comentarios').value = at.comentarios || '';
+    Utils.el('atpa-fotos-grid').innerHTML = '';
+
+    // Datas: converter para YYYY-MM-DD que o input[type=date] exige
+    const inicioVal = toInputDate(at.dt_inicio);
+    const prazoVal  = toInputDate(at.prazo);
+
+    const descEl   = Utils.el('atpa-desc');
+    const inicioEl = Utils.el('atpa-inicio');
+    const prazoEl  = Utils.el('atpa-prazo');
+
+    if (descEl)   descEl.value   = at.descricao || '';
+    if (inicioEl) inicioEl.value = inicioVal;
+    if (prazoEl)  prazoEl.value  = prazoVal;
+
+    // ── 2. Bloquear campos APÓS setar os valores ──
+    if (descEl)   { descEl.readOnly   = true; descEl.style.background   = 'var(--gray-50)'; }
+    if (inicioEl) { inicioEl.readOnly = true; inicioEl.style.background = 'var(--gray-50)'; }
+    if (prazoEl)  { prazoEl.readOnly  = true; prazoEl.style.background  = 'var(--gray-50)'; }
+
+    // Esconder responsável
     const respGroup = Utils.el('atpa-resp')?.closest('.form-group');
     if (respGroup) respGroup.style.display = 'none';
 
-    const descEl = Utils.el('atpa-desc');
-    if (descEl) { descEl.value = at.descricao; descEl.readOnly = true; descEl.style.background = 'var(--gray-50)'; }
-    const inicioEl = Utils.el('atpa-inicio');
-    if (inicioEl) { inicioEl.readOnly = true; inicioEl.style.background = 'var(--gray-50)'; }
-    const prazoEl = Utils.el('atpa-prazo');
-    if (prazoEl) { prazoEl.readOnly = true; prazoEl.style.background = 'var(--gray-50)'; }
-
-    Utils.el('atpa-id').value           = at.id;
-    Utils.el('atpa-plano-id').value     = at.plano_id;
-    Utils.el('atpa-inicio').value       = at.dt_inicio || '';
-    Utils.el('atpa-prazo').value        = at.prazo || '';
-    Utils.el('atpa-pct').value          = at.pct_concluida || 0;
-    Utils.el('atpa-conclusao').value    = at.dt_conclusao || '';
-    Utils.el('atpa-status').value       = at.status || 'Não iniciada';
-    Utils.el('atpa-comentarios').value  = at.comentarios || '';
-    Utils.el('atpa-fotos-grid').innerHTML = '';
-
-    Utils.el('modal-atpa-title').textContent = '📝 Registrar Andamento';
+    Utils.el('modal-atpa-title').textContent = '📝 Registrar Andamento — ' + (at.descricao||'').slice(0,40);
     Utils.openModal('modal-atividade-pa');
 
     // Override submit para usar registrarProgressoPA
