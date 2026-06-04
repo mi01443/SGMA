@@ -3,19 +3,20 @@
 ══════════════════════════════════════ */
 
 /* ── Stats cards ── */
-#pa-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:10px; margin-bottom:1.25rem; }
-.pa-stat-card { background:#fff; border:1px solid var(--gray-200); border-radius:var(--radius-lg); padding:.875rem 1rem; text-align:center; transition:all var(--transition); box-shadow:var(--shadow-xs); }
-.pa-stat-card:hover { box-shadow:var(--shadow); transform:translateY(-2px); }
-.pa-stat-num { font-size:1.75rem; font-weight:700; line-height:1; letter-spacing:-.02em; }
-.pa-stat-lbl { font-size:.68rem; color:var(--gray-400); font-weight:600; text-transform:uppercase; letter-spacing:.05em; margin-top:4px; }
-.pa-stat-info    { border-top:3px solid var(--info); }    .pa-stat-info    .pa-stat-num { color:var(--info); }
-.pa-stat-primary { border-top:3px solid var(--primary); } .pa-stat-primary .pa-stat-num { color:var(--primary); }
-.pa-stat-warning { border-top:3px solid var(--warning); } .pa-stat-warning .pa-stat-num { color:var(--warning); }
-.pa-stat-success { border-top:3px solid var(--success); } .pa-stat-success .pa-stat-num { color:var(--success); }
-.pa-stat-danger  { border-top:3px solid var(--danger); }  .pa-stat-danger  .pa-stat-num { color:var(--danger); }
+#pa-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:1rem; }
+.pa-stat-card { background:#fff; border:1px solid var(--gray-200); border-radius:var(--radius); padding:.75rem .875rem; text-align:center; transition:all var(--transition); box-shadow:var(--shadow-xs); border-top:3px solid var(--gray-200); }
+.pa-stat-card:hover { box-shadow:var(--shadow); transform:translateY(-1px); }
+.pa-stat-num { font-size:1.5rem; font-weight:700; line-height:1; letter-spacing:-.02em; }
+.pa-stat-lbl { font-size:.62rem; color:var(--gray-400); font-weight:600; text-transform:uppercase; letter-spacing:.04em; margin-top:3px; }
+.pa-stat-info    { border-top-color:var(--info); }    .pa-stat-info    .pa-stat-num { color:var(--info); }
+.pa-stat-primary { border-top-color:var(--primary); } .pa-stat-primary .pa-stat-num { color:var(--primary); }
+.pa-stat-warning { border-top-color:var(--warning); } .pa-stat-warning .pa-stat-num { color:var(--warning); }
+.pa-stat-success { border-top-color:var(--success); } .pa-stat-success .pa-stat-num { color:var(--success); }
+.pa-stat-danger  { border-top-color:var(--danger); }  .pa-stat-danger  .pa-stat-num { color:var(--danger); }
 
-/* ── Filter bar ── */
-.pa-filter-bar { display:flex; align-items:center; gap:8px; margin-bottom:1.25rem; flex-wrap:wrap; }
+/* ── Filter bar: escondido no mobile (usa só os stats como filtro) ── */
+.pa-filter-bar { display:flex; align-items:center; gap:6px; margin-bottom:1rem; flex-wrap:wrap; }
+.pa-filter-bar .filter-chip { font-size:.72rem; padding:4px 11px; }
 
 /* ── Empty state ── */
 .pa-empty { text-align:center; padding:3rem 1.5rem; }
@@ -140,10 +141,37 @@
   .pa-detail-grid { grid-template-columns:1fr; }
   .pa-detail-side { order:-1; }
 }
-@media (max-width: 600px) {
-  #pa-stats { grid-template-columns:repeat(3,1fr); }
-  .pa-hero  { padding:1.125rem; }
-  .pa-hero-titulo { font-size:1.05rem; }
+@media (max-width: 640px) {
+  /* Stats: 3 por linha no mobile */
+  #pa-stats { grid-template-columns:repeat(3,1fr); gap:6px; }
+  .pa-stat-num { font-size:1.25rem; }
+  .pa-stat-lbl { font-size:.58rem; }
+  .pa-stat-card { padding:.625rem .5rem; }
+
+  /* Esconder filtros de texto no mobile — stats já filtram */
+  .pa-filter-bar { display:none; }
+
+  /* Hero */
+  .pa-hero { padding:1rem; }
+  .pa-hero-titulo { font-size:1rem; }
+  .pa-hero-top { flex-direction:column; gap:8px; }
+  .pa-hero-badges { flex-direction:row; }
+
+  /* Cards */
   .pa-card-actions { display:none; }
-  .pa-at-btns .btn { padding:5px 8px; font-size:.72rem; }
+  .pa-card-top { flex-direction:column; gap:6px; }
+  .pa-card-right { flex-direction:row; }
+
+  /* Atividades */
+  .pa-at-btns { flex-direction:column; }
+  .pa-at-btns .btn { font-size:.72rem; padding:5px 8px; }
+}
+
+@media (min-width: 641px) and (max-width: 900px) {
+  #pa-stats { grid-template-columns:repeat(6,1fr); }
+}
+
+@media (min-width: 901px) {
+  #pa-stats { grid-template-columns:repeat(6,1fr); }
+  .pa-filter-bar { display:flex; }
 }
