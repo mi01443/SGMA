@@ -10,6 +10,38 @@
 
   const isSup = session.perfil === 'supervisor' || session.perfil === 'admin';
 
+  // ── Utilitário: qualquer formato → YYYY-MM-DD para input[type=date] ──
+  function toInputDate(val) {
+    if (!val || String(val).trim() === '') return '';
+    const s = String(val).trim();
+    // Já correto
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // ISO com hora: 2026-05-31T03:00:00.000Z
+    if (s.includes('T') || s.includes('Z')) {
+      const d = new Date(s);
+      if (!isNaN(d)) {
+        return d.getUTCFullYear() + '-' +
+               String(d.getUTCMonth()+1).padStart(2,'0') + '-' +
+               String(d.getUTCDate()).padStart(2,'0');
+      }
+    }
+    // DD/MM/YYYY
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+      const p = s.split('/');
+      return p[2]+'-'+p[1]+'-'+p[0];
+    }
+    // Serial numérico do Excel/Sheets
+    if (/^\d{4,5}$/.test(s)) {
+      const d = new Date((parseInt(s) - 25569) * 86400 * 1000);
+      if (!isNaN(d)) {
+        return d.getUTCFullYear() + '-' +
+               String(d.getUTCMonth()+1).padStart(2,'0') + '-' +
+               String(d.getUTCDate()).padStart(2,'0');
+      }
+    }
+    return '';
+  }
+
   let planos        = [];
   let profissionais = [];
   let atividadesPA  = [];
@@ -517,7 +549,7 @@
     Utils.el('plano-origem').value    = p?.origem || 'Manutenção';
     Utils.el('plano-classif').value   = p?.classificacao || 'Manutenção';
     Utils.el('plano-prio').value      = p?.prioridade || 'Média';
-    Utils.el('plano-prazo').value     = p?.prazo || '';
+    Utils.el('plano-prazo').value     = toInputDate(p?.prazo);
     Utils.el('plano-setor').value     = p?.setor || 'Elétrica';
     Utils.el('plano-hh-prev').value   = p?.hh_previsto || '';
     Utils.el('plano-mat-prev').value  = p?.mat_previsto || '';
@@ -582,9 +614,9 @@
     Utils.el('atpa-plano-id').value     = planoId;
     Utils.el('atpa-desc').value         = at?.descricao || '';
     Utils.el('atpa-pct').value          = at?.pct_concluida || 0;
-    Utils.el('atpa-inicio').value       = at?.dt_inicio || '';
-    Utils.el('atpa-prazo').value        = at?.prazo || '';
-    Utils.el('atpa-conclusao').value    = at?.dt_conclusao || '';
+    Utils.el('atpa-inicio').value       = toInputDate(at?.dt_inicio);
+    Utils.el('atpa-prazo').value        = toInputDate(at?.prazo);
+    Utils.el('atpa-conclusao').value    = toInputDate(at?.dt_conclusao);
     Utils.el('atpa-status').value       = at?.status || 'Não iniciada';
     Utils.el('atpa-comentarios').value  = at?.comentarios || '';
     Utils.el('atpa-fotos-grid').innerHTML = '';
@@ -634,26 +666,6 @@
   // ════════════════════════════════════════
   // MODAL PROGRESSO TÉCNICO
   // ════════════════════════════════════════
-  // Converte qualquer formato de data para YYYY-MM-DD (para input type=date)
-  function toInputDate(val) {
-    if (!val || String(val).trim() === '') return '';
-    const s = String(val).trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    if (s.includes('T') || s.includes('Z')) {
-      const d = new Date(s);
-      if (!isNaN(d)) {
-        return d.getUTCFullYear() + '-' +
-               String(d.getUTCMonth()+1).padStart(2,'0') + '-' +
-               String(d.getUTCDate()).padStart(2,'0');
-      }
-    }
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
-      const p = s.split('/');
-      return p[2]+'-'+p[1]+'-'+p[0];
-    }
-    return '';
-  }
-
   function abrirModalProgresso(atId) {
     const at = atividadesPA.find(x => String(x.id) === String(atId));
     if (!at) return;
