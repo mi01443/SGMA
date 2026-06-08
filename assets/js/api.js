@@ -8,21 +8,6 @@
 const API = (() => {
 
   // ── CONFIGURAÇÃO ──────────────────────────────────────────────
-  const CONFIG = {
-    SCRIPT_URL:    'https://script.google.com/macros/s/AKfycbyK1rJcdU45kgzGn17CxF7I1iZ9PLVBA4u0ijybCx_6yhxITbyC_8adXcJz38H4W2yedg/exec',
-    PA_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbybesfaHL_c1NX6KT8xS9vhK9x6p01aIHEuhVwFKS6srSWxzvhAai9W0P3GSwCqZzxMsw/exec',
-  };
-  // ──────────────────────────────────────────────────────────────
-/**
- * api.js — Comunicação com Google Apps Script
- * TODAS as requisições usam GET para evitar CORS preflight.
- *
- * CONFIGURAÇÃO: preencha SCRIPT_URL com a URL do seu Apps Script deployado.
- */
-
-const API = (() => {
-
-  // ── CONFIGURAÇÃO ──────────────────────────────────────────────
   /**
    * ── CONFIGURAÇÃO DE URLs ────────────────────────────────────────
    * Cada módulo tem seu próprio Apps Script + planilha separada.
