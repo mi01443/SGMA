@@ -13,6 +13,40 @@ const API = (() => {
     PA_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbybesfaHL_c1NX6KT8xS9vhK9x6p01aIHEuhVwFKS6srSWxzvhAai9W0P3GSwCqZzxMsw/exec',
   };
   // ──────────────────────────────────────────────────────────────
+/**
+ * api.js — Comunicação com Google Apps Script
+ * TODAS as requisições usam GET para evitar CORS preflight.
+ *
+ * CONFIGURAÇÃO: preencha SCRIPT_URL com a URL do seu Apps Script deployado.
+ */
+
+const API = (() => {
+
+  // ── CONFIGURAÇÃO ──────────────────────────────────────────────
+  /**
+   * ── CONFIGURAÇÃO DE URLs ────────────────────────────────────────
+   * Cada módulo tem seu próprio Apps Script + planilha separada.
+   * Após publicar cada Code_*.gs como Web App, cole a URL abaixo.
+   * ──────────────────────────────────────────────────────────────
+   */
+  const CONFIG = {
+    // Planilha principal: usuários, atividades, equipamentos
+    SCRIPT_URL:    'https://script.google.com/macros/s/AKfycbyK1rJcdU45kgzGn17CxF7I1iZ9PLVBA4u0ijybCx_6yhxITbyC_8adXcJz38H4W2yedg/exec',
+
+    // Planilha Plano de Ação (Code_PA.gs)
+    PA_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbybesfaHL_c1NX6KT8xS9vhK9x6p01aIHEuhVwFKS6srSWxzvhAai9W0P3GSwCqZzxMsw/exec',
+
+    // Gestão da Equipe — uma URL por módulo (Code_Ferias.gs, Code_DDS.gs...)
+    FERIAS_SCRIPT_URL:   'https://script.google.com/macros/s/AKfycbyx_m_qM3h5rgVRMOZ_Ot6FBCBUFYMd1LjbkZF0BnEd2Qm5XEaZ6G7B59wyRFFbxMGJQQ/exec',
+    DDS_SCRIPT_URL:      'https://script.google.com/macros/s/SEU_DDS_DEPLOYMENT_ID/exec',
+    TREINA_SCRIPT_URL:   'https://script.google.com/macros/s/SEU_TREINA_DEPLOYMENT_ID/exec',
+    ESCALAS_SCRIPT_URL:  'https://script.google.com/macros/s/SEU_ESCALAS_DEPLOYMENT_ID/exec',
+    FOLGAS_SCRIPT_URL:   'https://script.google.com/macros/s/SEU_FOLGAS_DEPLOYMENT_ID/exec',
+    ATEST_SCRIPT_URL:    'https://script.google.com/macros/s/SEU_ATEST_DEPLOYMENT_ID/exec',
+    CERTIF_SCRIPT_URL:   'https://script.google.com/macros/s/SEU_CERTIF_DEPLOYMENT_ID/exec',
+    AVAL_SCRIPT_URL:     'https://script.google.com/macros/s/SEU_AVAL_DEPLOYMENT_ID/exec',
+  };
+  // ──────────────────────────────────────────────────────────────
 
   const token = () => sessionStorage.getItem('token') || '';
 
@@ -47,6 +81,32 @@ const API = (() => {
     if (data.error) throw new Error(data.error);
     return data;
   }
+
+  // Factory: cria função request para qualquer URL de módulo
+  function makeModuleRequest(scriptUrlKey) {
+    return async function moduleRequest(action, params = {}) {
+      const scriptUrl = CONFIG[scriptUrlKey];
+      if (!scriptUrl || scriptUrl.includes('SEU_')) {
+        throw new Error('URL do módulo "' + scriptUrlKey + '" não configurada. Edite api.js → CONFIG.' + scriptUrlKey);
+      }
+      const url = new URL(scriptUrl);
+      url.searchParams.set('action', action);
+      url.searchParams.set('token', token());
+      Object.entries(params).forEach(([k, v]) => {
+        url.searchParams.set(k, typeof v === 'object' ? JSON.stringify(v) : v);
+      });
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      return data;
+    };
+  }
+
+  // Request functions por módulo
+  const feriasReq  = makeModuleRequest('FERIAS_SCRIPT_URL');
+  const ddsReq     = makeModuleRequest('DDS_SCRIPT_URL');
+  const treinaReq  = makeModuleRequest('TREINA_SCRIPT_URL');
 
   return {
     CONFIG,
@@ -139,6 +199,28 @@ const API = (() => {
 
     deleteMotivo: (id) =>
       request('deleteMotivo', { id }),
+
+    // ── Módulo Férias (Code_Ferias.gs → FERIAS_SCRIPT_URL) ──
+    getFerias: () =>
+      feriasReq('getFerias'),
+
+    saveFerias: (dados) =>
+      feriasReq('saveFerias', dados),
+
+    processarFerias: (dados) =>
+      feriasReq('processarFerias', dados),
+
+    cancelarFerias: (id) =>
+      feriasReq('cancelarFerias', { id }),
+
+    setupFerias: () =>
+      feriasReq('setupFerias'),
+
+    // ── Módulo DDS (Code_DDS.gs → DDS_SCRIPT_URL) — em breve ──
+    // getDDS: () => ddsReq('getDDS'),
+
+    // ── Módulo Treinamentos (Code_Treina.gs → TREINA_SCRIPT_URL) — em breve ──
+    // getTreinamentos: () => treinaReq('getTreinamentos'),
 
     // ── Plano de Ação (planilha separada — PA_SCRIPT_URL) ──
     getPlanos: () =>
