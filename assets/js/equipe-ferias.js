@@ -20,12 +20,16 @@
   // ──────────────────────────────────────────
   // NAVEGAÇÃO
   // ──────────────────────────────────────────
-  window.abrirModulo = (mod) => {
+  window.abrirModulo = async (mod) => {
     moduloAtual = mod;
     Utils.el('view-landing').classList.add('hidden');
-    Utils.el('view-' + mod).classList.remove('hidden');
-    Utils.el('topbar-title').textContent = mod === 'ferias' ? '🏖️ Férias' : mod;
-    if (mod === 'ferias') iniciarFerias();
+    // esconder todas as views de módulo
+    document.querySelectorAll('.page-content[id^="view-"]').forEach(v => v.classList.add('hidden'));
+    Utils.el('view-' + mod)?.classList.remove('hidden');
+    const titles = { ferias:'🏖️ Férias', treinamentos:'📚 Treinamentos' };
+    Utils.el('topbar-title').textContent = titles[mod] || mod;
+    if (mod === 'ferias')        iniciarFerias();
+    if (mod === 'treinamentos')  window.initTreinamentos?.();
   };
 
   window.voltarLanding = () => {
