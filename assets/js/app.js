@@ -63,7 +63,13 @@
       profissionais = profRes?.profissionais || [];
 
       const semanas = semRes.semanas || [];
-      semanaAtual   = semanas.find(s => s.status === 'aberta') || semanas[0] || null;
+      const hoje = new Date().toISOString().slice(0,10);
+      // Prioridade: 1) semana que contém hoje, 2) aberta, 3) mais recente
+      semanaAtual =
+        semanas.find(s => s.data_inicio <= hoje && s.data_fim >= hoje) ||
+        semanas.find(s => s.status === 'aberta') ||
+        [...semanas].sort((a,b) => b.data_inicio.localeCompare(a.data_inicio))[0] ||
+        null;
 
     } catch (e) {
       if (!silent) Utils.toast('Erro ao carregar: ' + e.message, 'error');
@@ -408,8 +414,11 @@
     Utils.setHTML('detail-om',   a.om || a.id || '—');
     Utils.setHTML('detail-desc', a.descricao || '—');
 
-    const motOpts = motivos.map(m => `<option value="${m.id}">${m.descricao}</option>`).join('');
+    const motOpts  = motivos.map(m => `<option value="${m.id}">${m.descricao}</option>`).join('');
     let selectedStatus = a.status !== 'pendente' ? a.status : null;
+
+    // Atividade finalizada — só visualização
+    const finalizada = a.status === 'concluida' || a.status === 'nao_realizada' || a.status === 'parcial';
 
     // Helper linha somente leitura
     const irow = (label, val) =>
@@ -448,6 +457,22 @@
 
       <!-- ── REGISTRO DE EXECUÇÃO ── -->
       <div class="detail-section">
+        ${finalizada ? `
+        <!-- ══ MODO SOMENTE LEITURA (atividade finalizada) ══ -->
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--gray-50);border:1.5px solid var(--gray-200);border-radius:var(--radius);margin-bottom:14px;">
+          <span style="font-size:1.1rem;">🔒</span>
+          <div>
+            <div style="font-size:.8rem;font-weight:700;color:var(--gray-600);">Atividade finalizada — somente visualização</div>
+            <div style="font-size:.72rem;color:var(--gray-400);">Para reabrir, entre em contato com o supervisor.</div>
+          </div>
+        </div>
+        <div style="display:grid;gap:0;">
+          ${irow('Resultado', Utils.statusBadge(a.status))}
+          ${a.hh_parcial ? irow('Duração registrada', Utils.fmtHH(a.hh_parcial)) : ''}
+          ${a.obs_parcial ? '<div style="margin-top:10px;"><div class="detail-section-title">Observações</div><div style="font-size:.8125rem;color:var(--gray-600);background:var(--gray-50);padding:10px 12px;border-radius:var(--radius);border-left:3px solid var(--gray-300);line-height:1.5;">' + (a.obs_parcial||'—') + '</div></div>' : ''}
+        </div>
+        ` : `
+        <!-- ══ MODO EDIÇÃO ══ -->
         <div class="detail-section-title">Registro de Execução</div>
 
         <!-- Status de execução -->
@@ -460,7 +485,7 @@
           </div>
         </div>
 
-        <!-- Motivo (não realizada ou parcial) -->
+        <!-- Motivo -->
         <div class="form-group ${selectedStatus==='nao_realizada'||selectedStatus==='parcial'?'':'hidden'}" id="motivo-group">
           <label class="form-label">Motivo <span>*</span></label>
           <select class="form-control" id="exec-motivo">
@@ -506,6 +531,7 @@
           </div>
           <div class="photo-grid" id="photos-after-grid"></div>
         </div>
+        `}
       </div>
     `);
 
@@ -593,9 +619,28 @@
       };
     }
 
-    // ── Salvar Progresso (sem finalizar) ──
+    // ── Controle do footer conforme status ──
     const btnProgresso = Utils.el('btn-save-progresso');
-    if (btnProgresso) {
+    const btnFinalizar = Utils.el('btn-save-exec');
+
+    if (finalizada) {
+      // Esconder botões de edição
+      if (btnProgresso) btnProgresso.style.display = 'none';
+      if (btnFinalizar) {
+        btnFinalizar.textContent = 'Fechar';
+        btnFinalizar.className = 'btn btn-secondary w-full';
+        btnFinalizar.onclick = () => document.querySelector('.detail-panel')?.classList.remove('open');
+      }
+    } else {
+      if (btnProgresso) btnProgresso.style.display = '';
+      if (btnFinalizar) {
+        btnFinalizar.textContent = '✅ Finalizar e registrar';
+        btnFinalizar.className = 'btn btn-primary w-full';
+      }
+    }
+
+    // ── Salvar Progresso (sem finalizar) ──
+    if (btnProgresso && !finalizada) {
       btnProgresso.onclick = async () => {
         btnProgresso.disabled = true;
         btnProgresso.innerHTML = '<span class="spinner" style="width:13px;height:13px;border-width:2px;"></span>';
@@ -623,38 +668,39 @@
     }
   }
 
-  function renderChecklist() {
-    const passos = currentAtiv.passos || [];
+    function renderChecklist() {
+    const a      = currentAtiv;
+    const passos = a?.passos || [];
     const el     = Utils.el('detail-checklist');
-    if (!el) return;
-    if (!passos.length) { el.innerHTML = '<p class="text-muted text-sm">Sem passos cadastrados.</p>'; return; }
+    if (!el || !a) return;
+    const finalizada = a.status === 'concluida' || a.status === 'nao_realizada' || a.status === 'parcial';
 
-    el.innerHTML = `
-      <div class="detail-section-title">Checklist</div>
-      ${passos.map(p => `
-        <div class="checklist-item">
-          <input type="checkbox" class="checklist-cb" id="passo-${p.id}" data-passo-id="${p.id}" ${p.concluido?'checked':''}>
-          <label class="checklist-text" for="passo-${p.id}">${p.descricao}</label>
-          ${p.concluido && p.concluido_em ? `<span class="text-xs text-muted">${Utils.fmtDateTime(p.concluido_em)}</span>` : ''}
-        </div>`).join('')}`;
+    if (!passos.length) {
+      el.innerHTML = '<p class="text-muted text-sm">Sem passos cadastrados.</p>';
+      return;
+    }
 
-    el.querySelectorAll('.checklist-cb').forEach(cb => {
-      cb.addEventListener('change', async () => {
-        try {
-          await API.updatePasso(String(currentAtiv.id), cb.dataset.passoId, cb.checked);
-          const p = currentAtiv.passos.find(p => p.id === cb.dataset.passoId);
-          if (p) { p.concluido = cb.checked; p.concluido_em = new Date().toISOString(); }
-        } catch {
-          cb.checked = !cb.checked;
-          Utils.toast('Erro ao salvar passo', 'error');
-        }
+    el.innerHTML = passos.map(p => `
+      <div class="checklist-item">
+        <input type="checkbox" class="checklist-cb" data-passo-id="${p.id}"
+          ${p.concluido ? 'checked' : ''}
+          ${finalizada ? 'disabled style="opacity:.5;cursor:not-allowed;"' : ''}>
+        <span class="checklist-text" style="${finalizada && p.concluido ? 'text-decoration:line-through;color:var(--gray-400);' : ''}">
+          ${p.descricao}
+        </span>
+      </div>`).join('');
+
+    if (!finalizada) {
+      el.querySelectorAll('.checklist-cb').forEach(cb => {
+        cb.addEventListener('change', async () => {
+          try { await API.updatePasso(String(currentAtiv.id), cb.dataset.passoId, cb.checked); }
+          catch(e) { Utils.toast('Erro: ' + e.message, 'error'); cb.checked = !cb.checked; }
+        });
       });
-    });
+    }
   }
 
-  // renderExecForm movido para renderDetailPanel
 
-  // ── Timer ──
   function startTimer() {
     if (timerInterval) return;
     timerInterval = setInterval(() => {
