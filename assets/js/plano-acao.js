@@ -641,26 +641,71 @@
       for (const ev of evidenciasTemp) {
         try { const r = await API.uploadFotoPA(ev.base64, ev.mimeType, Utils.el('atpa-plano-id').value); links.push(r.url); } catch {}
       }
+
+      const isNova       = !Utils.el('atpa-id').value;
+      const responsavelId= Utils.el('atpa-resp').value;
+      const descricao    = Utils.el('atpa-desc').value.trim();
+      const prazo        = Utils.el('atpa-prazo').value;
+      const planoId      = Utils.el('atpa-plano-id').value;
+
       await API.saveAtividadePA({
         id:             Utils.el('atpa-id').value,
-        plano_id:       Utils.el('atpa-plano-id').value,
-        descricao:      Utils.el('atpa-desc').value.trim(),
-        responsavel_id: Utils.el('atpa-resp').value,
+        plano_id:       planoId,
+        descricao:      descricao,
+        responsavel_id: responsavelId,
         pct_concluida:  parseInt(Utils.el('atpa-pct').value)||0,
         dt_inicio:      Utils.el('atpa-inicio').value,
-        prazo:          Utils.el('atpa-prazo').value,
+        prazo:          prazo,
         dt_conclusao:   Utils.el('atpa-conclusao').value,
         status:         Utils.el('atpa-status').value,
         comentarios:    Utils.el('atpa-comentarios').value.trim(),
         evidencias:     JSON.stringify(links),
         criado_por:     session.id,
       });
+
       Utils.closeModal('modal-atividade-pa');
       Utils.toast('Atividade salva!', 'success');
+
+      // Notificação WhatsApp ao técnico quando nova atividade é atribuída
+      if (isNova && responsavelId) {
+        const tecnico = profissionais.find(p => String(p.id) === String(responsavelId));
+        if (tecnico?.telefone) {
+          const plano  = planos.find(p => String(p.id) === String(planoId));
+          notificarAtividadePA(tecnico, {
+            descricao,
+            prazo,
+            planoTitulo: plano?.titulo || '—',
+            planoId,
+          });
+        }
+      }
+
       await carregarTudo(true);
       if (planoAtual) { planoAtual = planos.find(p=>String(p.id)===String(planoAtual.id))||planoAtual; renderDetalhe(planoAtual); }
     } catch(e) { Utils.toast('Erro: ' + e.message, 'error'); }
     finally { Utils.hideLoading(); btn.disabled = false; }
+  }
+
+  // ── Notificação WhatsApp — atividade do Plano de Ação ──
+  function notificarAtividadePA(tecnico, at) {
+    const tel = String(tecnico.telefone || '').replace(/\D/g, '');
+    if (!tel || tel.length < 10) return;
+
+    const msg = [
+      '📋 *SGMA — Nova Atividade no Plano de Ação*',
+      '',
+      `Olá *${tecnico.nome.split(' ')[0]}*,`,
+      'Uma nova atividade foi atribuída a você:',
+      '',
+      `🗂 *Plano:* ${at.planoTitulo}`,
+      `📝 *Atividade:* ${at.descricao}`,
+      `📅 *Prazo:* ${Utils.fmtDate(at.prazo)}`,
+      '',
+      'Acesse o SGMA → Plano de Ação para visualizar.',
+    ].join('\n');
+
+    window.open('https://wa.me/55' + tel + '?text=' + encodeURIComponent(msg), '_blank');
+    Utils.toast('📱 WhatsApp aberto para ' + tecnico.nome.split(' ')[0], 'info');
   }
 
   // ════════════════════════════════════════
