@@ -330,3 +330,43 @@
   .eq-tabs { overflow-x:auto; flex-wrap:nowrap; }
   .eq-tab  { white-space:nowrap; flex:none; }
 }
+
+/* ═══════════════════════════════════════
+   TREINAMENTOS
+═══════════════════════════════════════ */
+.tr-dash-item {
+  display:flex; align-items:flex-start; gap:12px;
+  padding:12px 0; border-bottom:1px solid var(--gray-100);
+}
+.tr-dash-item:last-child { border-bottom:none; }
+.tr-dash-status-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; margin-top:5px; }
+.tr-dash-body { flex:1; min-width:0; }
+.tr-dash-nome { font-size:.875rem; font-weight:600; color:var(--gray-800); margin-bottom:4px; }
+.tr-dash-meta { display:flex; flex-wrap:wrap; gap:8px; font-size:.72rem; color:var(--gray-400); align-items:center; }
+.tr-dash-right { display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0; }
+
+.tr-status-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:99px; font-size:.72rem; font-weight:700; white-space:nowrap; }
+.tr-status-vencido  { background:var(--danger-light);  color:var(--danger); }
+.tr-status-avencer  { background:var(--warning-light); color:var(--warning); }
+.tr-status-valido   { background:var(--success-light); color:var(--success); }
+.tr-status-pendente { background:var(--gray-100);      color:var(--gray-500); }
+
+.tr-matriz-item { display:flex; align-items:flex-start; gap:12px; padding:10px 0; border-bottom:1px solid var(--gray-100); }
+.tr-matriz-item:last-child { border-bottom:none; }
+.tr-matriz-body { flex:1; min-width:0; }
+.tr-matriz-nome { font-size:.875rem; font-weight:600; color:var(--gray-800); margin-bottom:5px; }
+.tr-matriz-meta { display:flex; flex-wrap:wrap; gap:5px; }
+
+.tr-hist-card { display:flex; align-items:flex-start; gap:12px; padding:12px 0; border-bottom:1px solid var(--gray-100); }
+.tr-hist-card:last-child { border-bottom:none; }
+.tr-hist-left { flex:1; min-width:0; }
+.tr-hist-meta { display:flex; flex-wrap:wrap; gap:10px; font-size:.72rem; color:var(--gray-400); margin-top:5px; }
+.tr-hist-obs  { font-size:.775rem; background:var(--gray-50); padding:5px 9px; border-left:2px solid var(--gray-200); border-radius:0 4px 4px 0; margin-top:6px; }
+.tr-hist-right { display:flex; flex-direction:column; align-items:flex-end; gap:6px; min-width:70px; }
+
+@media (max-width:640px) {
+  .tr-dash-right  { display:none; } /* no mobile, status fica inline */
+  .tr-dash-nome   { font-size:.8rem; }
+  .tr-hist-right  { min-width:60px; }
+  .tr-hist-card   { gap:8px; }
+}
