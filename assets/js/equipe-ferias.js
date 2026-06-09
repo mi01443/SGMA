@@ -678,7 +678,11 @@
       '',
       '— SGMA Sistema de Manutenção',
     ].join('\n');
-    window.open(`https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+    const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
+    const waUrl = isMobile
+      ? `whatsapp://send?phone=55${tel}&text=${encodeURIComponent(msg)}`
+      : `https://wa.me/55${tel}?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, '_blank');
   }
 
   // ──────────────────────────────────────────
