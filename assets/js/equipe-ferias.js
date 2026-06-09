@@ -431,29 +431,41 @@
       return `<div class="eq-sol-card">
         <div class="eq-sol-stripe stripe-${f.status}"></div>
         <div class="eq-sol-body">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
-            <div>
-              <div class="eq-sol-nome">${nomeProf(f.profissional_id)}</div>
-              <div class="eq-sol-periodo">📅 ${Utils.fmtDate(f.dt_inicio)} → ${Utils.fmtDate(f.dt_fim)}</div>
-              <div class="eq-sol-dias">${f.dias_corridos} dias corridos · Solicitado em ${Utils.fmtDate(f.dt_criacao)}</div>
-            </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+
+          <!-- Linha 1: nome + badges -->
+          <div class="eq-sol-header">
+            <div class="eq-sol-nome">${nomeProf(f.profissional_id)}</div>
+            <div class="eq-sol-badges">
               ${badgeStatus(f.status)}
-              ${f.conflito?'<span class="badge badge-danger">⚠ Conflito</span>':''}
+              ${String(f.conflito)==='true' ? '<span class="badge badge-danger">⚠ Conflito</span>' : ''}
             </div>
           </div>
-          ${f.observacao?`<div class="eq-sol-obs">${f.observacao}</div>`:''}
-          ${f.obs_aprovacao?`<div class="eq-sol-obs" style="border-left-color:${f.status==='aprovado'?'var(--success)':'var(--danger)'};">💬 ${f.obs_aprovacao}</div>`:''}
-          <div class="eq-sol-meta">
-            ${f.aprovado_por?`<span>👤 Aprovado por ${nomeProf(f.aprovado_por)}</span>`:''}
-            ${isSup && f.status==='pendente'?`
-              <button class="btn btn-primary btn-sm" onclick="abrirModalAprovar('${f.id}')">Analisar</button>
-            `:''}
-            ${isSup || String(f.profissional_id)===String(session.id) && !finalizado?`
-              <button class="btn btn-ghost btn-sm" onclick="abrirModalFerias('${f.id}')">✏️ Editar</button>
-            `:''}
-            ${!finalizado?`<button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="cancelarFerias('${f.id}')">🗑 Cancelar</button>`:''}
+
+          <!-- Linha 2: período em destaque -->
+          <div class="eq-sol-periodo">
+            📅 ${Utils.fmtDate(f.dt_inicio)}
+            <span style="color:var(--gray-300);margin:0 4px;">→</span>
+            ${Utils.fmtDate(f.dt_fim)}
+            <span class="eq-sol-dias-badge">${f.dias_corridos}d</span>
           </div>
+
+          <!-- Linha 3: meta info -->
+          <div class="eq-sol-meta-row">
+            <span>🗓 Solicitado: ${Utils.fmtDate(f.dt_criacao)}</span>
+            ${f.aprovado_por ? '<span>👤 ' + nomeProf(f.aprovado_por) + '</span>' : ''}
+          </div>
+
+          <!-- Observações -->
+          ${f.observacao ? `<div class="eq-sol-obs">${f.observacao}</div>` : ''}
+          ${f.obs_aprovacao ? `<div class="eq-sol-obs" style="border-left-color:${f.status==='aprovado'?'var(--success)':'var(--danger)'};">💬 ${f.obs_aprovacao}</div>` : ''}
+
+          <!-- Ações -->
+          <div class="eq-sol-actions">
+            ${isSup && f.status==='pendente' ? `<button class="btn btn-primary btn-sm eq-sol-btn" onclick="abrirModalAprovar('${f.id}')">✅ Analisar</button>` : ''}
+            ${(isSup || (String(f.profissional_id)===String(session.id))) && !finalizado ? `<button class="btn btn-secondary btn-sm eq-sol-btn" onclick="abrirModalFerias('${f.id}')">✏️ Editar</button>` : ''}
+            ${!finalizado ? `<button class="btn btn-ghost btn-sm eq-sol-btn" style="color:var(--danger);" onclick="cancelarFerias('${f.id}')">🗑</button>` : ''}
+          </div>
+
         </div>
       </div>`;
     }).join('');
@@ -533,8 +545,9 @@
     const idAtual = Utils.el('ferias-id').value;
     const conflitos = ferias.filter(f =>
       String(f.id) !== idAtual &&
-      (f.status==='aprovado'||f.status==='pendente') &&
-      f.dt_inicio<=fim && f.dt_fim>=ini
+      (f.status==='aprovado' || f.status==='pendente') &&
+      String(f.profissional_id) !== String(Utils.el('ferias-colab')?.value || session.id) &&
+      f.dt_inicio <= fim && f.dt_fim >= ini
     );
     const warnEl  = Utils.el('ferias-conflito-warn');
     const msgEl   = Utils.el('ferias-conflito-msg');
