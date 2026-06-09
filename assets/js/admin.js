@@ -459,6 +459,9 @@ Essa ação não pode ser desfeita.`)) return;
       const passos = [...document.querySelectorAll('.passo-input')].map(i => i.value.trim()).filter(Boolean);
       const om = Utils.el('at-om')?.value.trim() || '';
       if (!om) { Utils.toast('Número da OM é obrigatório', 'error'); btn.disabled = false; return; }
+      const tecnicoId = Utils.el('at-tecnico').value;
+      const isNova    = !Utils.el('at-id')?.value; // novo cadastro
+
       await API.saveAtividade({
         id:              om,
         om:              om,
@@ -468,13 +471,29 @@ Essa ação não pode ser desfeita.`)) return;
         equipamentoId:   eq,
         subSistemaId:    Utils.el('at-sub-sistema-id')?.value || '',
         descricao:       desc,
-        tecnicoId:       Utils.el('at-tecnico').value,
+        tecnicoId:       tecnicoId,
         dataProgramada:  Utils.el('at-data').value,
         hhEstimado:      parseFloat(Utils.el('at-hh').value) || 1,
         passos,
       });
       Utils.closeModal('at-modal');
       Utils.toast('Atividade salva!', 'success');
+
+      // Notificação WhatsApp ao técnico quando nova atividade é atribuída
+      if (isNova && tecnicoId) {
+        const tecnico = profissionais.find(p => String(p.id) === String(tecnicoId));
+        if (tecnico?.telefone) {
+          const eq_nome = equipamentos.find(e => String(e.id) === String(eq))?.nome || eq;
+          notificarAtividade(tecnico, {
+            om, descricao: desc, equipamento: eq_nome,
+            data: Utils.el('at-data').value,
+            hh:   parseFloat(Utils.el('at-hh').value) || 1,
+            tipo: Utils.el('at-tipo').value,
+            prio: Utils.el('at-prio').value,
+          });
+        }
+      }
+
       await loadAtividades();
     } catch (err) {
       console.error('Erro saveAtividade admin:', err);
@@ -625,6 +644,30 @@ Essa ação não pode ser desfeita.`)) return;
       const erros = res.erros || [];
       Utils.toast(`${res.criadas} atividades importadas!${erros.length ? ' ' + erros.length + ' ignoradas.' : ''}`, 'success');
       if (erros.length) console.warn('Erros na importação:', erros);
+
+      // Notificar técnicos das atividades importadas via WhatsApp
+      if (res.criadas > 0) {
+        const confirmar = confirm('Deseja enviar notificação WhatsApp para os técnicos das atividades importadas?');
+        if (confirmar) {
+          lista.filter(item => item.tecnicoRef).forEach(item => {
+            const prof = profissionais.find(p =>
+              p.nome.toLowerCase().includes(String(item.tecnicoRef||'').toLowerCase()) ||
+              String(p.id) === String(item.tecnicoRef)
+            );
+            if (prof?.telefone) {
+              notificarAtividade(prof, {
+                om:          item.om || item.id,
+                descricao:   item.descricao,
+                equipamento: item.equipamentoRef || '—',
+                data:        item.dataProgramada || '',
+                hh:          item.hhEstimado || 1,
+                tipo:        item.tipo || 'programada',
+                prio:        item.prioridade || 'Normal',
+              });
+            }
+          });
+        }
+      }
       Utils.el('import-preview')?.classList.add('hidden');
     } catch (e) {
       Utils.toast('Erro na importação: ' + e.message, 'error');
@@ -785,6 +828,9 @@ Essa ação não pode ser desfeita.`)) return;
       const passos = [...document.querySelectorAll('.passo-input')].map(i => i.value.trim()).filter(Boolean);
       const om = Utils.el('at-om')?.value.trim() || '';
       if (!om) { Utils.toast('Número da OM é obrigatório', 'error'); btn.disabled = false; return; }
+      const tecnicoId = Utils.el('at-tecnico').value;
+      const isNova    = !Utils.el('at-id')?.value; // novo cadastro
+
       await API.saveAtividade({
         id:              om,
         om:              om,
@@ -794,13 +840,29 @@ Essa ação não pode ser desfeita.`)) return;
         equipamentoId:   eq,
         subSistemaId:    Utils.el('at-sub-sistema-id')?.value || '',
         descricao:       desc,
-        tecnicoId:       Utils.el('at-tecnico').value,
+        tecnicoId:       tecnicoId,
         dataProgramada:  Utils.el('at-data').value,
         hhEstimado:      parseFloat(Utils.el('at-hh').value) || 1,
         passos,
       });
       Utils.closeModal('at-modal');
       Utils.toast('Atividade salva!', 'success');
+
+      // Notificação WhatsApp ao técnico quando nova atividade é atribuída
+      if (isNova && tecnicoId) {
+        const tecnico = profissionais.find(p => String(p.id) === String(tecnicoId));
+        if (tecnico?.telefone) {
+          const eq_nome = equipamentos.find(e => String(e.id) === String(eq))?.nome || eq;
+          notificarAtividade(tecnico, {
+            om, descricao: desc, equipamento: eq_nome,
+            data: Utils.el('at-data').value,
+            hh:   parseFloat(Utils.el('at-hh').value) || 1,
+            tipo: Utils.el('at-tipo').value,
+            prio: Utils.el('at-prio').value,
+          });
+        }
+      }
+
       await loadAtividades();
     } catch (err) {
       console.error('Erro saveAtividade admin:', err);
@@ -969,6 +1031,38 @@ Essa ação não pode ser desfeita.`)) return;
     } catch (err) { Utils.toast('Erro: ' + err.message, 'error'); }
     finally { btn.disabled = false; }
   });
+
+  // ═══════════════════════════════════════
+  // NOTIFICAÇÃO WHATSAPP
+  // ═══════════════════════════════════════
+  function notificarAtividade(tecnico, at) {
+    const tel  = String(tecnico.telefone || '').replace(/\D/g, '');
+    if (!tel || tel.length < 10) return;
+
+    const tipo = { programada:'Programada', fora_programacao:'Fora de Programação', ver_e_agir:'Ver e Agir' };
+    const prio = { Normal:'Normal', Alta:'⚠️ Alta', Urgente:'🔴 URGENTE', Baixa:'Baixa' };
+
+    const msg = [
+      '🔧 *SGMA — Nova Atividade Atribuída*',
+      '',
+      `Olá *${tecnico.nome.split(' ')[0]}*,`,
+      'Uma nova atividade foi atribuída a você:',
+      '',
+      `📋 *OM: ${at.om}*`,
+      `📍 Equipamento: ${at.equipamento}`,
+      `📝 ${at.descricao}`,
+      '',
+      `📅 Data programada: ${Utils.fmtDate(at.data)}`,
+      `⏱ HH Estimado: ${at.hh}h`,
+      `🏷 Tipo: ${tipo[at.tipo] || at.tipo}`,
+      `🎯 Prioridade: ${prio[at.prio] || at.prio}`,
+      '',
+      'Acesse o SGMA para visualizar os detalhes.',
+    ].join('\n');
+
+    window.open('https://wa.me/55' + tel + '?text=' + encodeURIComponent(msg), '_blank');
+    Utils.toast('📱 WhatsApp aberto para ' + tecnico.nome.split(' ')[0], 'info');
+  }
 
   // ── Init ──
   await loadTab('profissionais');
