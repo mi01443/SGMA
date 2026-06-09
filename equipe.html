@@ -68,11 +68,11 @@
           <div class="eq-module-desc">Diálogo diário de segurança — registro e histórico</div>
           <div class="eq-module-badge soon-badge">Em breve</div>
         </div>
-        <div class="eq-module-card soon">
-          <div class="eq-module-icon" style="background:linear-gradient(135deg,#64748b,#475569);">📚</div>
+        <div class="eq-module-card active" onclick="abrirModulo('treinamentos')">
+          <div class="eq-module-icon" style="background:linear-gradient(135deg,#059669,#047857);">📚</div>
           <div class="eq-module-name">Treinamentos</div>
-          <div class="eq-module-desc">Controle de capacitações, validades e certificações</div>
-          <div class="eq-module-badge soon-badge">Em breve</div>
+          <div class="eq-module-desc">Matriz de treinamentos, validades, histórico técnico e avaliações</div>
+          <div class="eq-module-badge">Disponível</div>
         </div>
         <div class="eq-module-card soon">
           <div class="eq-module-icon" style="background:linear-gradient(135deg,#64748b,#475569);">📅</div>
@@ -111,6 +111,25 @@
           <div class="eq-module-badge soon-badge">Em breve</div>
         </div>
       </div>
+    </div>
+
+    <!-- MÓDULO: TREINAMENTOS -->
+    <div class="page-content hidden" id="view-treinamentos">
+      <div class="eq-breadcrumb">
+        <button class="eq-back-btn" onclick="voltarLanding()">← Gestão da Equipe</button>
+        <span class="eq-breadcrumb-sep">/</span>
+        <span>📚 Treinamentos</span>
+      </div>
+      <div class="eq-tabs">
+        <button class="tr-tab eq-tab active" data-tab="dashboard" onclick="setTabTR('dashboard')">Dashboard</button>
+        <button class="tr-tab eq-tab" data-tab="matriz" id="tab-tr-matriz" onclick="setTabTR('matriz')">Matriz</button>
+        <button class="tr-tab eq-tab" data-tab="catalogo" onclick="setTabTR('catalogo')">Catálogo</button>
+        <button class="tr-tab eq-tab" data-tab="historico" onclick="setTabTR('historico')">Hist. Técnico</button>
+      </div>
+      <div class="tr-content" data-tab="dashboard"><div id="tr-dashboard"></div></div>
+      <div class="tr-content hidden" data-tab="matriz"><div id="tr-matriz"></div></div>
+      <div class="tr-content hidden" data-tab="catalogo"><div id="tr-catalogo"></div></div>
+      <div class="tr-content hidden" data-tab="historico"><div id="tr-historico"></div></div>
     </div>
 
     <!-- MÓDULO: FÉRIAS -->
@@ -278,10 +297,197 @@
   </div>
 </div>
 
+<!-- ══ MODAIS TREINAMENTOS ══ -->
+
+<!-- Catálogo -->
+<div id="modal-tr-catalogo" class="modal-overlay" style="display:none;">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 class="modal-title" id="tr-cat-title">Novo Treinamento</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Utils.closeModal('modal-tr-catalogo')">✕</button>
+    </div>
+    <form id="form-tr-catalogo">
+      <input type="hidden" id="tr-cat-id">
+      <div class="form-group">
+        <label class="form-label">Nome <span>*</span></label>
+        <input type="text" id="tr-cat-nome" class="form-control" required placeholder="Ex: NR-10 Segurança Elétrica">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Categoria</label>
+          <select id="tr-cat-categoria" class="form-control">
+            <option>NR</option><option>ASO</option><option>Segurança</option>
+            <option>Técnico</option><option>Procedimento</option><option>Qualidade</option><option>Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo</label>
+          <select id="tr-cat-tipo" class="form-control">
+            <option value="reciclagem">Reciclagem (atualiza registro)</option>
+            <option value="formacao">Formação (mantém histórico)</option>
+            <option value="tecnico">Técnico (avaliação)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Validade (dias) <span style="font-weight:400;color:var(--gray-400);">— 0 = sem validade</span></label>
+        <input type="number" id="tr-cat-validade" class="form-control" min="0" step="1" placeholder="Ex: 365 para 1 ano, 730 para 2 anos">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Descrição</label>
+        <textarea id="tr-cat-descricao" class="form-control" rows="2"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="Utils.closeModal('modal-tr-catalogo')">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btn-salvar-tr-cat">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Matriz -->
+<div id="modal-tr-matriz" class="modal-overlay" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Adicionar à Matriz</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Utils.closeModal('modal-tr-matriz')">✕</button>
+    </div>
+    <form id="form-tr-matriz">
+      <input type="hidden" id="tr-mat-funcao">
+      <div class="form-group">
+        <label class="form-label">Treinamento <span>*</span></label>
+        <select id="tr-mat-treinamento" class="form-control" required></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Obrigatoriedade</label>
+        <select id="tr-mat-obrig" class="form-control">
+          <option value="true">Obrigatório</option>
+          <option value="false">Opcional / Desejável</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="Utils.closeModal('modal-tr-matriz')">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btn-salvar-tr-mat">Adicionar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Registro (segurança/ASO) -->
+<div id="modal-tr-registro" class="modal-overlay" style="display:none;">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 class="modal-title">Registrar Realização</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Utils.closeModal('modal-tr-registro')">✕</button>
+    </div>
+    <form id="form-tr-registro">
+      <input type="hidden" id="tr-reg-id">
+      <div class="form-group" id="tr-reg-prof-group">
+        <label class="form-label">Profissional</label>
+        <select id="tr-reg-prof" class="form-control"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Treinamento <span>*</span></label>
+        <select id="tr-reg-treina" class="form-control" required></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data de realização <span>*</span></label>
+          <input type="date" id="tr-reg-data" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Carga horária (h)</label>
+          <input type="number" id="tr-reg-carga" class="form-control" step="0.5" min="0" placeholder="Ex: 8">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Instrutor</label>
+          <input type="text" id="tr-reg-instrutor" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Local</label>
+          <input type="text" id="tr-reg-local" class="form-control">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observação</label>
+        <textarea id="tr-reg-obs" class="form-control" rows="2"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="Utils.closeModal('modal-tr-registro')">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btn-salvar-tr-reg">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Histórico Técnico -->
+<div id="modal-tr-tecnico" class="modal-overlay" style="display:none;">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 class="modal-title" id="tr-tec-title">Registrar Treinamento Técnico</h3>
+      <button class="btn btn-ghost btn-icon" onclick="Utils.closeModal('modal-tr-tecnico')">✕</button>
+    </div>
+    <form id="form-tr-tecnico">
+      <input type="hidden" id="tr-tec-id">
+      <div class="form-group">
+        <label class="form-label">Profissional</label>
+        <select id="tr-tec-prof" class="form-control"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Treinamento <span>*</span></label>
+        <select id="tr-tec-treina" class="form-control" required></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Data <span>*</span></label>
+          <input type="date" id="tr-tec-data" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Carga horária (h)</label>
+          <input type="number" id="tr-tec-carga" class="form-control" step="0.5" min="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Instrutor</label>
+          <input type="text" id="tr-tec-instrutor" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Local</label>
+          <input type="text" id="tr-tec-local" class="form-control">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nota (0–10)</label>
+          <input type="number" id="tr-tec-nota" class="form-control" min="0" max="10" step="0.5" placeholder="Ex: 8.5">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Resultado</label>
+          <select id="tr-tec-result" class="form-control">
+            <option>Aprovado</option><option>Reprovado</option><option>Em curso</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observações</label>
+        <textarea id="tr-tec-obs" class="form-control" rows="2"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="Utils.closeModal('modal-tr-tecnico')">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btn-salvar-tr-tec">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div id="toast-container"></div>
 <script src="assets/js/api.js"></script>
 <script src="assets/js/utils.js"></script>
 <script src="assets/js/auth.js"></script>
 <script src="assets/js/equipe-ferias.js"></script>
+<script src="assets/js/equipe-treinamentos.js"></script>
 </body>
 </html>
