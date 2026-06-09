@@ -1060,7 +1060,11 @@ Essa ação não pode ser desfeita.`)) return;
       'Acesse o SGMA para visualizar os detalhes.',
     ].join('\n');
 
-    window.open('https://wa.me/55' + tel + '?text=' + encodeURIComponent(msg), '_blank');
+    const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
+    const waUrl = isMobile
+      ? 'whatsapp://send?phone=55' + tel + '&text=' + encodeURIComponent(msg)
+      : 'https://wa.me/55' + tel + '?text=' + encodeURIComponent(msg);
+    window.open(waUrl, '_blank');
     Utils.toast('📱 WhatsApp aberto para ' + tecnico.nome.split(' ')[0], 'info');
   }
 
