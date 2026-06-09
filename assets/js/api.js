@@ -24,7 +24,7 @@ const API = (() => {
     // Gestão da Equipe — uma URL por módulo (Code_Ferias.gs, Code_DDS.gs...)
     FERIAS_SCRIPT_URL:   'https://script.google.com/macros/s/AKfycbyx_m_qM3h5rgVRMOZ_Ot6FBCBUFYMd1LjbkZF0BnEd2Qm5XEaZ6G7B59wyRFFbxMGJQQ/exec',
     DDS_SCRIPT_URL:      'https://script.google.com/macros/s/SEU_DDS_DEPLOYMENT_ID/exec',
-    TREINA_SCRIPT_URL:   'https://script.google.com/macros/s/SEU_TREINA_DEPLOYMENT_ID/exec',
+    TREINA_SCRIPT_URL:   'https://script.google.com/macros/s/AKfycbxYR_KhifGQuX9NptXzKE7V6cHK6ndz5acPhNmP_p7gFLFkKwnUVt5ZqgOac8GPYvkzMA/exec',
     ESCALAS_SCRIPT_URL:  'https://script.google.com/macros/s/SEU_ESCALAS_DEPLOYMENT_ID/exec',
     FOLGAS_SCRIPT_URL:   'https://script.google.com/macros/s/SEU_FOLGAS_DEPLOYMENT_ID/exec',
     ATEST_SCRIPT_URL:    'https://script.google.com/macros/s/SEU_ATEST_DEPLOYMENT_ID/exec',
@@ -197,6 +197,34 @@ const API = (() => {
 
     cancelarFerias: (id) =>
       feriasReq('cancelarFerias', { id }),
+
+    // ── Módulo Treinamentos (Code_Treinamentos.gs → TREINA_SCRIPT_URL) ──
+    getCatalogoTR: () =>
+      treinaReq('getCatalogo'),
+    saveCatalogoTR: (dados) =>
+      treinaReq('saveCatalogo', dados),
+    deleteCatalogoTR: (id) =>
+      treinaReq('deleteCatalogo', { id }),
+    getMatrizTR: (filtros) =>
+      treinaReq('getMatriz', filtros),
+    saveMatrizItemTR: (dados) =>
+      treinaReq('saveMatrizItem', dados),
+    deleteMatrizItemTR: (id) =>
+      treinaReq('deleteMatrizItem', { id }),
+    getRegistrosTR: (filtros) =>
+      treinaReq('getRegistros', filtros),
+    saveRegistroTR: (dados) =>
+      treinaReq('saveRegistro', dados),
+    getDashboardTR: (filtros) =>
+      treinaReq('getDashboard', filtros),
+    getHistoricoTecnicoTR: (filtros) =>
+      treinaReq('getHistoricoTecnico', filtros),
+    saveHistoricoTecnicoTR: (dados) =>
+      treinaReq('saveHistoricoTecnico', dados),
+    deleteHistoricoTecnicoTR: (id) =>
+      treinaReq('deleteHistoricoTecnico', { id }),
+    setupTreinamentos: () =>
+      treinaReq('setupTreinamentos'),
 
     setupFerias: () =>
       feriasReq('setupFerias'),
