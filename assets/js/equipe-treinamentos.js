@@ -2,14 +2,10 @@
  * equipe-treinamentos.js — Módulo Treinamentos
  * Chamado por equipe.html ao clicar no card Treinamentos
  */
-(async () => {
-  // Exportar função init para equipe.html
-  window.initTreinamentos = initTreinamentos;
-
-  const session = window._session || Auth.getSession();
-  if (!session) return;
-
-  const isSup = session.perfil === 'supervisor' || session.perfil === 'admin';
+// Módulo carregado como script simples — initTreinamentos é chamado por equipe-ferias.js
+{
+  let _session = null;
+  let _isSup   = false;
 
   let catalogo    = [];
   let matriz      = [];
@@ -19,8 +15,10 @@
   let dashItens   = [];
   let abaAtual    = 'dashboard';
 
-  // ────────────────────────────────────────
-  async function initTreinamentos() {
+  window.initTreinamentos = async function initTreinamentos() {
+    _session = Auth.getSession();
+    if (!_session) { console.warn('TR: sem sessão'); return; }
+    _isSup = _session.perfil === 'supervisor' || _session.perfil === 'admin';
     Utils.showLoading('Carregando treinamentos...');
     try {
       const [catRes, matRes, profRes] = await Promise.all([
@@ -34,7 +32,7 @@
 
       // Botão novo na topbar (supervisor)
       const tb = Utils.el('topbar-actions');
-      if (tb && isSup) {
+      if (tb && _isSup) {
         tb.innerHTML = `<button class="btn btn-primary btn-sm" onclick="abrirModalCatalogo()">+ Treinamento</button>`;
       }
 
@@ -48,7 +46,7 @@
     // Auto-refresh 30s
     setInterval(async () => {
       try {
-        const r = await API.getDashboardTR({ profissional_id: session.id, funcao: session.funcao });
+        const r = await API.getDashboardTR({ profissional_id: _session.id, funcao: _session.funcao });
         dashItens = r.itens || [];
         if (abaAtual === 'dashboard') renderDashboardTR();
       } catch {}
@@ -78,11 +76,11 @@
     if (!container) return;
     container.innerHTML = '<div class="text-muted text-sm">Carregando...</div>';
     try {
-      const profId = isSup ? (Utils.el('tr-filtro-prof')?.value || '') : session.id;
-      const prof   = profissionais.find(p => String(p.id) === String(profId || session.id));
-      const funcao = prof?.funcao || session.funcao || '';
+      const profId = _isSup ? (Utils.el('tr-filtro-prof')?.value || '') : _session.id;
+      const prof   = profissionais.find(p => String(p.id) === String(profId || _session.id));
+      const funcao = prof?.funcao || _session.funcao || '';
 
-      const res = await API.getDashboardTR({ profissional_id: profId || session.id, funcao });
+      const res = await API.getDashboardTR({ profissional_id: profId || _session.id, funcao });
       dashItens = res.itens || [];
 
       const vencidos   = dashItens.filter(i => i.status === 'vencido');
@@ -92,7 +90,7 @@
 
       container.innerHTML = `
         <!-- Filtro supervisor -->
-        ${isSup ? `
+        ${_isSup ? `
         <div style="margin-bottom:1rem;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <select class="form-control" id="tr-filtro-prof" style="max-width:220px;" onchange="renderAbaTR('dashboard')">
             <option value="">Selecione o profissional</option>
@@ -128,10 +126,10 @@
         <!-- Lista de treinamentos da matriz -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">📋 Situação dos Treinamentos — ${prof?.nome || session.nome}</span>
+            <span class="card-title">📋 Situação dos Treinamentos — ${prof?.nome || _session.nome}</span>
           </div>
           ${dashItens.length
-            ? dashItens.map(i => renderItemDash(i, profId || session.id)).join('')
+            ? dashItens.map(i => renderItemDash(i, profId || _session.id)).join('')
             : '<div class="empty-state" style="padding:2rem;"><p>Nenhum treinamento na matriz para esta função.</p></div>'}
         </div>`;
 
@@ -159,7 +157,7 @@
       else diasLabel = `<span style="color:var(--success);font-size:.72rem;">${i.dias_diff}d restantes</span>`;
     }
 
-    const canReg = (isSup || String(session.id) === String(profId));
+    const canReg = (_isSup || String(_session.id) === String(profId));
 
     return `<div class="tr-dash-item">
       <div class="tr-dash-status-dot" style="background:${sc.cor};" title="${sc.label}"></div>
@@ -174,7 +172,7 @@
       </div>
       <div class="tr-dash-right">
         <span class="tr-status-badge ${sc.cls}">${sc.icon} ${sc.label}</span>
-        ${canReg && isSup ? `<button class="btn btn-ghost btn-sm" style="margin-top:4px;font-size:.7rem;" onclick="abrirModalRegistro('${profId}','${i.treinamento_id}','${i.registro_id}')">Registrar</button>` : ''}
+        ${canReg && _isSup ? `<button class="btn btn-ghost btn-sm" style="margin-top:4px;font-size:.7rem;" onclick="abrirModalRegistro('${profId}','${i.treinamento_id}','${i.registro_id}')">Registrar</button>` : ''}
       </div>
     </div>`;
   }
@@ -183,7 +181,7 @@
   // MATRIZ DE TREINAMENTO
   // ════════════════════════════════════════
   async function renderMatrizTR() {
-    if (!isSup) return;
+    if (!_isSup) return;
     const container = Utils.el('tr-matriz');
     if (!container) return;
 
@@ -245,7 +243,7 @@
     const container = Utils.el('tr-catalogo');
     if (!container) return;
     container.innerHTML = `
-      ${isSup?`<div style="margin-bottom:1rem;display:flex;justify-content:flex-end;"><button class="btn btn-primary btn-sm" onclick="abrirModalCatalogo()">+ Novo treinamento</button></div>`:''}
+      ${_isSup?`<div style="margin-bottom:1rem;display:flex;justify-content:flex-end;"><button class="btn btn-primary btn-sm" onclick="abrirModalCatalogo()">+ Novo treinamento</button></div>`:''}
       <div class="card">
         <div class="card-header"><span class="card-title">📚 Catálogo de Treinamentos</span><span class="badge badge-gray">${catalogo.length}</span></div>
         ${catalogo.map(t => `
@@ -259,7 +257,7 @@
               </div>
               ${t.descricao?`<div style="font-size:.72rem;color:var(--gray-400);margin-top:3px;">${t.descricao}</div>`:''}
             </div>
-            ${isSup?`<div style="display:flex;gap:4px;">
+            ${_isSup?`<div style="display:flex;gap:4px;">
               <button class="btn btn-ghost btn-sm btn-icon" onclick="abrirModalCatalogo('${t.id}')">✏️</button>
               <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteCatalogoTR('${t.id}')" style="color:var(--danger);">🗑</button>
             </div>`:''}
@@ -286,12 +284,12 @@
     if (!container) return;
     container.innerHTML = '<div class="text-muted text-sm">Carregando...</div>';
     try {
-      const profId = isSup ? (Utils.el('tr-hist-prof')?.value || '') : session.id;
+      const profId = _isSup ? (Utils.el('tr-hist-prof')?.value || '') : _session.id;
       const res = await API.getHistoricoTecnicoTR({ profissional_id: profId });
       histTecnico = res.historico || [];
 
       container.innerHTML = `
-        ${isSup?`<div style="margin-bottom:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        ${_isSup?`<div style="margin-bottom:1rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <select class="form-control" id="tr-hist-prof" style="max-width:220px;" onchange="renderAbaTR('historico')">
             <option value="">Todos os profissionais</option>
             ${profissionais.map(p=>`<option value="${p.id}" ${String(p.id)===String(profId)?'selected':''}>${p.nome}</option>`).join('')}
@@ -308,7 +306,7 @@
                 return `<div class="tr-hist-card">
                   <div class="tr-hist-left">
                     <div style="font-weight:700;font-size:.875rem;">${tr?.nome||h.treinamento_id}</div>
-                    ${isSup?`<div style="font-size:.75rem;color:var(--gray-400);">👤 ${prof?.nome||'—'}</div>`:''}
+                    ${_isSup?`<div style="font-size:.75rem;color:var(--gray-400);">👤 ${prof?.nome||'—'}</div>`:''}
                     <div class="tr-hist-meta">
                       <span>📅 ${Utils.fmtDate(h.dt_realizacao)}</span>
                       ${h.carga_horaria?`<span>⏱ ${h.carga_horaria}h</span>`:''}
@@ -320,7 +318,7 @@
                   <div class="tr-hist-right">
                     ${h.nota_avaliacao?`<div style="font-size:1.5rem;font-weight:800;color:${notaColor};line-height:1;">${parseFloat(h.nota_avaliacao).toFixed(1)}</div><div style="font-size:.65rem;color:var(--gray-400);">nota</div>`:''}
                     ${h.resultado?`<div><span class="badge ${h.resultado==='Aprovado'?'badge-success':h.resultado==='Reprovado'?'badge-danger':'badge-gray'}">${h.resultado}</span></div>`:''}
-                    ${isSup?`<button class="btn btn-ghost btn-sm btn-icon" onclick="deleteTecnicoTR('${h.id}')" style="color:var(--danger);margin-top:4px;">🗑</button>`:''}
+                    ${_isSup?`<button class="btn btn-ghost btn-sm btn-icon" onclick="deleteTecnicoTR('${h.id}')" style="color:var(--danger);margin-top:4px;">🗑</button>`:''}
                   </div>
                 </div>`;
               }).join('')
@@ -414,7 +412,7 @@
   window.abrirModalRegistro = (profId, trId, regId) => {
     const modal = document.getElementById('modal-tr-registro');
     if (!modal) return;
-    document.getElementById('tr-reg-prof').value     = profId || session.id;
+    document.getElementById('tr-reg-prof').value     = profId || _session.id;
     document.getElementById('tr-reg-treina').value   = trId || '';
     document.getElementById('tr-reg-id').value       = regId || '';
     document.getElementById('tr-reg-data').value     = '';
@@ -428,7 +426,7 @@
       selTr.innerHTML = catalogo.map(t=>`<option value="${t.id}" ${t.id===trId?'selected':''}>${t.nome}</option>`).join('');
     }
     const selProf = document.getElementById('tr-reg-prof');
-    if (selProf && isSup) {
+    if (selProf && _isSup) {
       selProf.innerHTML = profissionais.map(p=>`<option value="${p.id}" ${String(p.id)===String(profId)?'selected':''}>${p.nome}</option>`).join('');
     }
     Utils.openModal('modal-tr-registro');
@@ -473,11 +471,11 @@
     const selProf = document.getElementById('tr-tec-prof');
     const selTr   = document.getElementById('tr-tec-treina');
     if (selProf) {
-      if (isSup) {
-        selProf.innerHTML = profissionais.map(p=>`<option value="${p.id}" ${String(p.id)===(h?.profissional_id||session.id)?'selected':''}>${p.nome}</option>`).join('');
+      if (_isSup) {
+        selProf.innerHTML = profissionais.map(p=>`<option value="${p.id}" ${String(p.id)===(h?.profissional_id||_session.id)?'selected':''}>${p.nome}</option>`).join('');
         selProf.closest('.form-group').style.display = '';
       } else {
-        selProf.innerHTML = `<option value="${session.id}">${session.nome}</option>`;
+        selProf.innerHTML = `<option value="${_session.id}">${_session.nome}</option>`;
         selProf.closest('.form-group').style.display = 'none';
       }
     }
@@ -493,7 +491,7 @@
     try {
       await API.saveHistoricoTecnicoTR({
         id:              document.getElementById('tr-tec-id').value,
-        profissional_id: document.getElementById('tr-tec-prof').value || session.id,
+        profissional_id: document.getElementById('tr-tec-prof').value || _session.id,
         treinamento_id:  document.getElementById('tr-tec-treina').value,
         dt_realizacao:   document.getElementById('tr-tec-data').value,
         carga_horaria:   document.getElementById('tr-tec-carga').value,
@@ -510,4 +508,4 @@
     finally { btn.disabled = false; }
   });
 
-})();
+}
