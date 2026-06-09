@@ -255,22 +255,25 @@
     Utils.setHTML('ferias-proximas',
       `<div class="card-header"><span class="card-title">📅 Próximas Férias Aprovadas</span></div>` +
       (proximas.length
-        ? `<table class="rel-table">
-            <thead><tr><th>Colaborador</th><th>Início</th><th>Fim</th><th>Dias</th><th>Dias restantes</th></tr></thead>
-            <tbody>
-            ${proximas.slice(0,8).map(f => {
-              const diasRest = Math.ceil((new Date(f.dt_inicio) - new Date()) / 86400000);
-              return `<tr>
-                <td><strong>${nomeProf(f.profissional_id)}</strong></td>
-                <td>${Utils.fmtDate(f.dt_inicio)}</td>
-                <td>${Utils.fmtDate(f.dt_fim)}</td>
-                <td>${f.dias_corridos}d</td>
-                <td><span class="badge ${diasRest<=7?'badge-warning':diasRest<=30?'badge-info':'badge-gray'}">${diasRest}d</span></td>
-              </tr>`;
-            }).join('')}
-            </tbody>
-          </table>`
-        : '<p class="text-muted text-sm">Nenhuma férias aprovada futura.</p>')
+        ? proximas.slice(0,8).map(f => {
+            const diasRest = Math.ceil((new Date(f.dt_inicio) - new Date()) / 86400000);
+            const urgencia = diasRest<=7?'badge-warning':diasRest<=30?'badge-info':'badge-gray';
+            return `<div class="eq-hist-card">
+              <div class="eq-hist-avatar">${nomeProf(f.profissional_id).charAt(0)}</div>
+              <div class="eq-hist-body">
+                <div class="eq-hist-nome">${nomeProf(f.profissional_id)}</div>
+                <div class="eq-hist-periodo">
+                  📅 ${Utils.fmtDate(f.dt_inicio)} → ${Utils.fmtDate(f.dt_fim)}
+                  <span class="badge badge-gray">${f.dias_corridos}d</span>
+                </div>
+              </div>
+              <div class="eq-hist-right">
+                <span class="badge ${urgencia}">${diasRest}d</span>
+                <div style="font-size:.65rem;color:var(--gray-400);margin-top:2px;">restantes</div>
+              </div>
+            </div>`;
+          }).join('')
+        : '<p class="text-muted text-sm" style="padding:.5rem 0;">Nenhuma férias aprovada futura.</p>')
     );
   }
 
@@ -480,19 +483,24 @@
       .sort((a,b) => b.dt_inicio.localeCompare(a.dt_inicio));
 
     Utils.el('ferias-historico').innerHTML = lista.length
-      ? `<table class="rel-table">
-          <thead><tr><th>Colaborador</th><th>Período</th><th>Dias</th><th>Status</th><th>Aprovado por</th><th>Obs</th></tr></thead>
-          <tbody>
-            ${lista.map(f => `<tr>
-              <td><strong>${nomeProf(f.profissional_id)}</strong></td>
-              <td>${Utils.fmtDate(f.dt_inicio)} → ${Utils.fmtDate(f.dt_fim)}</td>
-              <td>${f.dias_corridos}d</td>
-              <td>${badgeStatus(f.status)}</td>
-              <td>${f.aprovado_por?nomeProf(f.aprovado_por):'—'}</td>
-              <td style="font-size:.75rem;color:var(--gray-400);">${f.obs_aprovacao||f.observacao||'—'}</td>
-            </tr>`).join('')}
-          </tbody>
-        </table>`
+      ? lista.map(f => {
+          const obs = f.obs_aprovacao || f.observacao || '';
+          return `<div class="eq-hist-card">
+            <div class="eq-hist-avatar ${f.status}">${nomeProf(f.profissional_id).charAt(0)}</div>
+            <div class="eq-hist-body">
+              <div class="eq-hist-nome">${nomeProf(f.profissional_id)}</div>
+              <div class="eq-hist-periodo">
+                📅 ${Utils.fmtDate(f.dt_inicio)} → ${Utils.fmtDate(f.dt_fim)}
+                <span class="badge badge-gray">${f.dias_corridos}d</span>
+              </div>
+              ${f.aprovado_por ? `<div class="eq-hist-aprov">👤 ${nomeProf(f.aprovado_por)}</div>` : ''}
+              ${obs ? `<div class="eq-hist-obs">${obs}</div>` : ''}
+            </div>
+            <div class="eq-hist-right">
+              ${badgeStatus(f.status)}
+            </div>
+          </div>`;
+        }).join('')
       : '<p class="text-muted text-sm" style="padding:1rem;">Nenhum histórico.</p>';
   }
 
