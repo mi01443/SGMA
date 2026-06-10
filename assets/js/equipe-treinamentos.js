@@ -75,31 +75,96 @@
   async function renderDashboardTR() {
     const container = Utils.el('tr-dashboard');
     if (!container) return;
-    // Ler o valor do select ANTES de destruir o DOM com innerHTML
-    const profId = _isSup ? (Utils.el('tr-filtro-prof')?.value || '') : _session.id;
+
+    // ── Ler filtros ANTES de destruir o DOM ──
+    const profId     = _isSup ? (Utils.el('tr-filtro-prof')?.value || '') : _session.id;
+    const modalidade = Utils.el('tr-filtro-modal')?.value || 'todos';
+
     container.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">Carregando...</div>';
     try {
-      const prof   = profissionais.find(p => String(p.id) === String(profId || _session.id));
+      const pid    = profId || _session.id;
+      const prof   = profissionais.find(p => String(p.id) === String(pid));
       const funcao = prof?.funcao || _session.funcao || '';
 
-      const res = await API.getDashboardTR({ profissional_id: profId || _session.id, funcao });
-      dashItens = res.itens || [];
+      // Buscar dados em paralelo: matriz/segurança + histórico técnico
+      const [dashRes, histRes] = await Promise.all([
+        API.getDashboardTR({ profissional_id: pid, funcao }),
+        API.getHistoricoTecnicoTR({ profissional_id: pid }),
+      ]);
 
-      const vencidos   = dashItens.filter(i => i.status === 'vencido');
-      const aVencer    = dashItens.filter(i => i.status === 'a_vencer');
-      const validos    = dashItens.filter(i => i.status === 'valido');
-      const pendentes  = dashItens.filter(i => i.status === 'pendente');
+      // Itens da matriz (segurança/ASO/procedimentos)
+      const itensMatriz = (dashRes.itens || []).map(i => ({ ...i, _modalidade: 'segurança' }));
+
+      // Itens do histórico técnico — montar card por treinamento
+      const histList  = histRes.historico || [];
+      const hoje      = new Date();
+      const itensTec  = [];
+      // agrupar por treinamento_id — pegar o mais recente
+      const histMap   = {};
+      histList.forEach(h => {
+        const tid = String(h.treinamento_id);
+        if (!histMap[tid] || h.dt_realizacao > histMap[tid].dt_realizacao) histMap[tid] = h;
+      });
+      Object.values(histMap).forEach(h => {
+        const tr       = catalogo.find(t => String(t.id) === String(h.treinamento_id));
+        const valDias  = parseInt(tr?.validade_dias) || 0;
+        let status     = 'valido';
+        let dias_diff  = null;
+        let dt_venc    = '';
+        if (valDias > 0 && h.dt_realizacao) {
+          const dtR  = new Date(h.dt_realizacao);
+          const dtV  = new Date(dtR); dtV.setDate(dtV.getDate() + valDias);
+          dt_venc    = dtV.toISOString().slice(0,10);
+          dias_diff  = Math.ceil((dtV - hoje) / 86400000);
+          if (dias_diff < 0)    status = 'vencido';
+          else if (dias_diff <= 30) status = 'a_vencer';
+          else                  status = 'valido';
+        }
+        itensTec.push({
+          treinamento_id: String(h.treinamento_id),
+          nome:           tr?.nome || h.treinamento_id,
+          categoria:      tr?.categoria || 'Técnico',
+          tipo:           tr?.tipo || 'tecnico',
+          validade_dias:  valDias,
+          status,
+          dias_diff,
+          dt_realizacao:  h.dt_realizacao,
+          dt_vencimento:  dt_venc,
+          nota:           h.nota_avaliacao,
+          resultado:      h.resultado,
+          registro_id:    '',
+          obrigatorio:    'false',
+          _modalidade:    'técnico',
+        });
+      });
+
+      // Combinar e filtrar por modalidade
+      const todosItens = [...itensMatriz, ...itensTec];
+      let itensFilt = todosItens;
+      if (modalidade === 'segurança') itensFilt = itensMatriz;
+      if (modalidade === 'técnico')   itensFilt = itensTec;
+
+      // KPIs
+      const vencidos  = itensFilt.filter(i => i.status === 'vencido');
+      const aVencer   = itensFilt.filter(i => i.status === 'a_vencer');
+      const validos   = itensFilt.filter(i => i.status === 'valido');
+      const pendentes = itensFilt.filter(i => i.status === 'pendente');
 
       container.innerHTML = `
-        <!-- Filtro supervisor -->
-        ${_isSup ? `
-        <div style="margin-bottom:1rem;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <!-- Filtros -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">
+          ${_isSup ? `
           <select class="form-control" id="tr-filtro-prof" style="max-width:220px;">
             <option value="">Selecione o profissional</option>
             ${profissionais.map(p=>`<option value="${p.id}" ${String(p.id)===String(profId)?'selected':''}>${p.nome}</option>`).join('')}
+          </select>` : ''}
+          <select class="form-control" id="tr-filtro-modal" style="max-width:180px;">
+            <option value="todos"     ${modalidade==='todos'     ?'selected':''}>🔍 Todos</option>
+            <option value="segurança" ${modalidade==='segurança' ?'selected':''}>🦺 Segurança / ASO</option>
+            <option value="técnico"   ${modalidade==='técnico'   ?'selected':''}>⚙️ Técnicos</option>
           </select>
-          <span class="text-muted text-sm">${funcao ? '· Função: ' + funcao : ''}</span>
-        </div>` : ''}
+          ${funcao ? `<span class="text-muted text-sm">· ${funcao}</span>` : ''}
+        </div>
 
         <!-- KPI cards -->
         <div class="stat-cards mb-3">
@@ -125,21 +190,21 @@
           </div>
         </div>
 
-        <!-- Lista de treinamentos da matriz -->
+        <!-- Lista unificada -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">📋 Situação dos Treinamentos — ${prof?.nome || _session.nome}</span>
+            <span class="card-title">📋 ${prof?.nome || _session.nome}
+              <span class="badge badge-gray" style="margin-left:6px;">${itensFilt.length}</span>
+            </span>
           </div>
-          ${dashItens.length
-            ? dashItens.map(i => renderItemDash(i, profId || _session.id)).join('')
-            : '<div class="empty-state" style="padding:2rem;"><p>Nenhum treinamento na matriz para esta função.</p></div>'}
+          ${itensFilt.length
+            ? itensFilt.map(i => renderItemDash(i, pid)).join('')
+            : '<div class="empty-state" style="padding:2rem;"><p>' + (modalidade==='técnico' ? 'Nenhum treinamento técnico registrado.' : 'Nenhum treinamento na matriz para esta função.') + '</p></div>'}
         </div>`;
 
-      // Bind do filtro após renderizar o select
-      const selProf = Utils.el('tr-filtro-prof');
-      if (selProf) {
-        selProf.onchange = () => renderDashboardTR();
-      }
+      // Bind filtros após renderizar
+      Utils.el('tr-filtro-prof')?.addEventListener('change', () => renderDashboardTR());
+      Utils.el('tr-filtro-modal')?.addEventListener('change', () => renderDashboardTR());
 
     } catch(e) {
       container.innerHTML = `<div class="alert alert-danger">Erro: ${e.message}</div>`;
@@ -154,30 +219,45 @@
       pendente: { cls:'tr-status-pendente', icon:'⬜', label:'Pendente',  cor:'var(--gray-400)' },
     };
     const sc = statusCfg[i.status] || statusCfg.pendente;
+    const isTec = i._modalidade === 'técnico';
 
-    let diasLabel = '';
-    if (i.dias_diff !== null) {
-      if (i.dias_diff < 0) diasLabel = `<span style="color:var(--danger);font-size:.72rem;font-weight:700;">${Math.abs(i.dias_diff)}d vencido</span>`;
-      else if (i.status === 'a_vencer') diasLabel = `<span style="color:var(--warning);font-size:.72rem;font-weight:700;">vence em ${i.dias_diff}d</span>`;
-      else diasLabel = `<span style="color:var(--success);font-size:.72rem;">${i.dias_diff}d restantes</span>`;
+    // Badge de dias — exibido com destaque
+    let diasBadge = '';
+    if (i.dias_diff !== null && i.dias_diff !== undefined) {
+      const abs = Math.abs(i.dias_diff);
+      if (i.dias_diff < 0)
+        diasBadge = `<span style="background:var(--danger-light);color:var(--danger);font-weight:700;font-size:.72rem;padding:2px 8px;border-radius:99px;">${abs}d vencido</span>`;
+      else if (i.status === 'a_vencer')
+        diasBadge = `<span style="background:var(--warning-light);color:var(--warning);font-weight:700;font-size:.72rem;padding:2px 8px;border-radius:99px;">vence em ${i.dias_diff}d</span>`;
+      else
+        diasBadge = `<span style="background:var(--success-light);color:var(--success);font-size:.72rem;padding:2px 8px;border-radius:99px;">${i.dias_diff}d restantes</span>`;
+    } else if (i.status === 'valido' && !i.validade_dias) {
+      diasBadge = `<span style="background:var(--gray-100);color:var(--gray-400);font-size:.72rem;padding:2px 8px;border-radius:99px;">sem validade</span>`;
     }
 
-    const canReg = (_isSup || String(_session.id) === String(profId));
+    const canReg = _isSup;
 
     return `<div class="tr-dash-item">
       <div class="tr-dash-status-dot" style="background:${sc.cor};" title="${sc.label}"></div>
       <div class="tr-dash-body">
-        <div class="tr-dash-nome">${i.nome} ${i.obrigatorio==='true'?'<span class="badge badge-danger" style="font-size:.58rem;">Obrigatório</span>':''}</div>
+        <div class="tr-dash-nome">
+          ${i.nome}
+          ${i.obrigatorio === 'true' ? '<span class="badge badge-danger" style="font-size:.55rem;margin-left:4px;">Obrigatório</span>' : ''}
+          ${isTec ? '<span class="badge badge-purple" style="font-size:.55rem;margin-left:4px;">Técnico</span>' : ''}
+        </div>
         <div class="tr-dash-meta">
           <span class="badge badge-gray" style="font-size:.6rem;">${i.categoria}</span>
-          ${i.dt_realizacao ? `<span>Realizado: ${Utils.fmtDate(i.dt_realizacao)}</span>` : '<span class="text-muted">Não realizado</span>'}
-          ${i.dt_vencimento ? `<span>Vence: ${Utils.fmtDate(i.dt_vencimento)}</span>` : (i.validade_dias > 0 ? '' : '<span class="text-muted">Sem validade</span>')}
-          ${diasLabel}
+          ${i.dt_realizacao
+            ? `<span>📅 ${Utils.fmtDate(i.dt_realizacao)}</span>`
+            : '<span class="text-muted">Não realizado</span>'}
+          ${diasBadge}
+          ${isTec && i.nota ? `<span>📝 Nota: <strong>${parseFloat(i.nota).toFixed(1)}</strong></span>` : ''}
+          ${isTec && i.resultado ? `<span class="badge ${i.resultado==='Aprovado'?'badge-success':i.resultado==='Reprovado'?'badge-danger':'badge-gray'}" style="font-size:.62rem;">${i.resultado}</span>` : ''}
         </div>
       </div>
       <div class="tr-dash-right">
         <span class="tr-status-badge ${sc.cls}">${sc.icon} ${sc.label}</span>
-        ${canReg && _isSup ? `<button class="btn btn-ghost btn-sm" style="margin-top:4px;font-size:.7rem;" onclick="abrirModalRegistro('${profId}','${i.treinamento_id}','${i.registro_id}')">Registrar</button>` : ''}
+        ${canReg && !isTec ? `<button class="btn btn-ghost btn-sm" style="margin-top:4px;font-size:.7rem;" onclick="abrirModalRegistro('${profId}','${i.treinamento_id}','${i.registro_id}')">Registrar</button>` : ''}
       </div>
     </div>`;
   }
