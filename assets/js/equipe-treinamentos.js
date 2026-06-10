@@ -247,7 +247,7 @@
 
     const canReg = _isSup;
 
-    return `<div class="tr-dash-item">
+    return `<div class="tr-dash-item" style="--status-color:${sc.cor};">
       <div class="tr-dash-status-dot" style="background:${sc.cor};" title="${sc.label}"></div>
       <div class="tr-dash-body">
         <div class="tr-dash-nome">
