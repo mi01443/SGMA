@@ -365,7 +365,15 @@
 .tr-hist-right { display:flex; flex-direction:column; align-items:flex-end; gap:6px; min-width:70px; }
 
 @media (max-width:640px) {
-  .tr-dash-right  { display:none; } /* no mobile, status fica inline */
+  /* Manter tr-dash-right visível para o botão Registrar funcionar no mobile */
+  .tr-dash-right  {
+    flex-direction:row; align-items:center; gap:6px;
+    flex-wrap:wrap; justify-content:flex-end;
+  }
+  .tr-status-badge { font-size:.65rem; padding:2px 8px; }
+  .tr-dash-item   { flex-wrap:wrap; }
+  .tr-dash-body   { flex-basis:100%; order:1; }
+  .tr-dash-right  { order:2; margin-left:22px; margin-top:4px; }
   .tr-dash-nome   { font-size:.8rem; }
   .tr-hist-right  { min-width:60px; }
   .tr-hist-card   { gap:8px; }
