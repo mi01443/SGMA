@@ -259,7 +259,7 @@
           <span class="badge badge-gray" style="font-size:.6rem;">${i.categoria}</span>
           ${i.dt_realizacao
             ? `<span>📅 ${Utils.fmtDate(i.dt_realizacao)}</span>`
-            : '<span class="text-muted">Não realizado</span>'}
+            : '<span style="color:var(--gray-400);">Não realizado</span>'}
           ${diasBadge}
           ${isTec && i.nota ? `<span>📝 Nota: <strong>${parseFloat(i.nota).toFixed(1)}</strong></span>` : ''}
           ${isTec && i.resultado ? `<span class="badge ${i.resultado==='Aprovado'?'badge-success':i.resultado==='Reprovado'?'badge-danger':'badge-gray'}" style="font-size:.62rem;">${i.resultado}</span>` : ''}
