@@ -43,12 +43,13 @@
       Utils.hideLoading();
     }
 
-    // Auto-refresh 30s
+    // Auto-refresh 30s — atualizar silenciosamente sem recriar o DOM
     setInterval(async () => {
+      if (abaAtual !== 'dashboard') return;
       try {
-        const r = await API.getDashboardTR({ profissional_id: _session.id, funcao: _session.funcao });
-        dashItens = r.itens || [];
-        if (abaAtual === 'dashboard') renderDashboardTR();
+        // Só atualizar dados internos, não recriar o DOM inteiro
+        // renderDashboardTR lê os filtros antes de destruir o DOM — seguro chamar
+        await renderDashboardTR(true); // silent — não pisca
       } catch {}
     }, 30000);
   }
@@ -72,7 +73,7 @@
   // ════════════════════════════════════════
   // DASHBOARD
   // ════════════════════════════════════════
-  async function renderDashboardTR() {
+  async function renderDashboardTR(silent = false) {
     const container = Utils.el('tr-dashboard');
     if (!container) return;
 
@@ -80,7 +81,10 @@
     const profId     = _isSup ? (Utils.el('tr-filtro-prof')?.value || '') : _session.id;
     const modalidade = Utils.el('tr-filtro-modal')?.value || 'todos';
 
-    container.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">Carregando...</div>';
+    // No refresh silencioso, não mostrar loading (evita piscar)
+    if (!silent) {
+      container.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">Carregando...</div>';
+    }
     try {
       const pid    = profId || _session.id;
       const prof   = profissionais.find(p => String(p.id) === String(pid));
@@ -221,18 +225,24 @@
     const sc = statusCfg[i.status] || statusCfg.pendente;
     const isTec = i._modalidade === 'técnico';
 
-    // Badge de dias — exibido com destaque
+    // Badge de dias — número exato + data de vencimento calculada
     let diasBadge = '';
-    if (i.dias_diff !== null && i.dias_diff !== undefined) {
-      const abs = Math.abs(i.dias_diff);
-      if (i.dias_diff < 0)
-        diasBadge = `<span style="background:var(--danger-light);color:var(--danger);font-weight:700;font-size:.72rem;padding:2px 8px;border-radius:99px;">${abs}d vencido</span>`;
-      else if (i.status === 'a_vencer')
-        diasBadge = `<span style="background:var(--warning-light);color:var(--warning);font-weight:700;font-size:.72rem;padding:2px 8px;border-radius:99px;">vence em ${i.dias_diff}d</span>`;
-      else
-        diasBadge = `<span style="background:var(--success-light);color:var(--success);font-size:.72rem;padding:2px 8px;border-radius:99px;">${i.dias_diff}d restantes</span>`;
-    } else if (i.status === 'valido' && !i.validade_dias) {
-      diasBadge = `<span style="background:var(--gray-100);color:var(--gray-400);font-size:.72rem;padding:2px 8px;border-radius:99px;">sem validade</span>`;
+    if (i.validade_dias > 0 && i.dt_realizacao) {
+      const d = i.dias_diff;
+      const dtVenc = i.dt_vencimento ? Utils.fmtDate(i.dt_vencimento) : '';
+      if (d < 0) {
+        diasBadge = `<span style="background:var(--danger-light);color:var(--danger);font-weight:700;font-size:.72rem;padding:3px 10px;border-radius:99px;white-space:nowrap;">
+          ${Math.abs(d)} dias vencido${dtVenc ? ' · ' + dtVenc : ''}
+        </span>`;
+      } else {
+        const bg  = d <= 30 ? 'var(--warning-light)' : 'var(--success-light)';
+        const clr = d <= 30 ? 'var(--warning)'       : 'var(--success)';
+        diasBadge = `<span style="background:${bg};color:${clr};font-weight:700;font-size:.72rem;padding:3px 10px;border-radius:99px;white-space:nowrap;">
+          ${d} dias restantes${dtVenc ? ' · vence ' + dtVenc : ''}
+        </span>`;
+      }
+    } else if (!i.validade_dias && i.dt_realizacao) {
+      diasBadge = `<span style="background:var(--gray-100);color:var(--gray-400);font-size:.72rem;padding:3px 10px;border-radius:99px;">sem validade</span>`;
     }
 
     const canReg = _isSup;
