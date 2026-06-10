@@ -53,7 +53,8 @@
     }, 30000);
   }
 
-  // ── Abas ──
+  // ── Abas ── (expor renderAbaTR globalmente para onchange inline)
+  window.renderAbaTR = async function(aba) { await renderAbaTR(aba); };
   window.setTabTR = (aba) => {
     abaAtual = aba;
     document.querySelectorAll('.tr-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === aba));
@@ -92,7 +93,7 @@
         <!-- Filtro supervisor -->
         ${_isSup ? `
         <div style="margin-bottom:1rem;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <select class="form-control" id="tr-filtro-prof" style="max-width:220px;" onchange="renderAbaTR('dashboard')">
+          <select class="form-control" id="tr-filtro-prof" style="max-width:220px;">
             <option value="">Selecione o profissional</option>
             ${profissionais.map(p=>`<option value="${p.id}" ${String(p.id)===String(profId)?'selected':''}>${p.nome}</option>`).join('')}
           </select>
@@ -133,8 +134,11 @@
             : '<div class="empty-state" style="padding:2rem;"><p>Nenhum treinamento na matriz para esta função.</p></div>'}
         </div>`;
 
-      // Re-bind filtro
-      Utils.el('tr-filtro-prof')?.addEventListener('change', () => renderDashboardTR());
+      // Bind do filtro após renderizar o select
+      const selProf = Utils.el('tr-filtro-prof');
+      if (selProf) {
+        selProf.onchange = () => renderDashboardTR();
+      }
 
     } catch(e) {
       container.innerHTML = `<div class="alert alert-danger">Erro: ${e.message}</div>`;
