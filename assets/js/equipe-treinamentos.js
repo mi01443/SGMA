@@ -75,9 +75,10 @@
   async function renderDashboardTR() {
     const container = Utils.el('tr-dashboard');
     if (!container) return;
-    container.innerHTML = '<div class="text-muted text-sm">Carregando...</div>';
+    // Ler o valor do select ANTES de destruir o DOM com innerHTML
+    const profId = _isSup ? (Utils.el('tr-filtro-prof')?.value || '') : _session.id;
+    container.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">Carregando...</div>';
     try {
-      const profId = _isSup ? (Utils.el('tr-filtro-prof')?.value || '') : _session.id;
       const prof   = profissionais.find(p => String(p.id) === String(profId || _session.id));
       const funcao = prof?.funcao || _session.funcao || '';
 
