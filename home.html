@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGMA — Início</title>
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/equipe.css">
+  <style>
+    .home-greeting { margin-bottom:1.5rem; }
+    .home-greeting-title { font-size:1.375rem; font-weight:800; color:var(--gray-900); letter-spacing:-.02em; }
+    .home-greeting-sub   { font-size:.875rem; color:var(--gray-400); margin-top:4px; }
+
+    .home-grid {
+      display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+      gap:1rem; margin-bottom:1.5rem;
+    }
+    .home-card {
+      background:#fff; border:1px solid var(--gray-200); border-radius:var(--radius-lg);
+      padding:1.25rem; box-shadow:var(--shadow-xs); cursor:pointer;
+      transition:all .15s; text-decoration:none; color:inherit;
+      display:flex; flex-direction:column; gap:8px; position:relative; overflow:hidden;
+    }
+    .home-card:hover { box-shadow:var(--shadow); transform:translateY(-2px); }
+    .home-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--card-color, var(--gray-200)); }
+
+    .home-card-header { display:flex; align-items:center; justify-content:space-between; }
+    .home-card-icon { font-size:1.5rem; }
+    .home-card-count {
+      font-size:1.75rem; font-weight:800; line-height:1;
+      color:var(--card-color, var(--gray-700));
+    }
+    .home-card-title { font-size:.875rem; font-weight:700; color:var(--gray-800); }
+    .home-card-sub   { font-size:.75rem; color:var(--gray-400); }
+    .home-card-empty { color:var(--success); font-weight:600; }
+
+    .home-card-list { margin-top:4px; display:flex; flex-direction:column; gap:4px; }
+    .home-card-list-item {
+      font-size:.72rem; color:var(--gray-500); background:var(--gray-50);
+      padding:4px 8px; border-radius:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+
+    .home-section-title { font-size:.95rem; font-weight:700; color:var(--gray-800); margin:1.5rem 0 .75rem; }
+
+    @media (max-width:600px) {
+      .home-grid { grid-template-columns:1fr 1fr; gap:.75rem; }
+      .home-card { padding:1rem; }
+      .home-card-count { font-size:1.5rem; }
+      .home-card-title { font-size:.8rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+  <div class="sidebar-overlay"></div>
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-text">
+        <div class="logo-name">SGMA</div>
+        <div class="logo-sub">Ger. de Manutenção</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Menu</div>
+      <a class="nav-item active" href="home.html">Início</a>
+      <a class="nav-item" href="app.html">Atividades</a>
+      <a class="nav-item" href="equipe.html">Gestão da Equipe</a>
+      <a class="nav-item" href="plano-acao.html">Plano de Ação</a>
+      <a class="nav-item" href="relatorio.html" id="nav-rel-link" style="display:none;">Relatórios</a>
+      <a class="nav-item" href="admin.html" id="nav-admin-link" style="display:none;">Administração</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="user-info">
+        <div class="user-name" id="user-name">—</div>
+        <div class="user-role" id="user-role">—</div>
+      </div>
+      <button class="logout-btn" title="Sair">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="topbar">
+      <button class="topbar-hamburger btn-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <span class="topbar-title">Início</span>
+    </header>
+
+    <div class="page-content">
+      <div class="home-greeting">
+        <div class="home-greeting-title" id="home-saudacao">Olá!</div>
+        <div class="home-greeting-sub" id="home-data-hoje"></div>
+      </div>
+
+      <div id="home-loading" class="text-muted text-sm">Carregando seu resumo...</div>
+      <div id="home-content" class="hidden"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/home.js"></script>
+</body>
+</html>
