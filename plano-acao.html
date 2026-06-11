@@ -20,6 +20,7 @@
       </div>
     </div>
     <nav class="sidebar-nav">
+      <a class="nav-item" href="home.html">🏠 Início</a>
       <div class="nav-section">Menu</div>
       <a class="nav-item" href="app.html">Atividades</a>
       <a class="nav-item" href="relatorio.html">Relatórios</a>
@@ -53,17 +54,21 @@
       <!-- Dashboard cards -->
       <div class="stat-cards" id="pa-stats"></div>
 
-      <!-- Filtros -->
+      <!-- Busca (visível em todos os tamanhos) -->
+      <div style="margin-bottom:.75rem;">
+        <input type="text" class="form-control" id="pa-search"
+          placeholder="🔍 Buscar plano por título ou ID..."
+          style="max-width:100%;">
+      </div>
+
+      <!-- Filtros de status (visíveis em desktop; no mobile usa os cards como filtro) -->
       <div class="pa-filter-bar">
-        <div style="display:flex;gap:6px;flex-wrap:wrap;flex:1;">
-          <button class="filter-chip active" data-filter="todos">Todos</button>
-          <button class="filter-chip" data-filter="Aberto">Abertos</button>
-          <button class="filter-chip" data-filter="Em andamento">Em andamento</button>
-          <button class="filter-chip" data-filter="Aguardando aprovação">Ag. aprovação</button>
-          <button class="filter-chip" data-filter="Concluído">Concluídos</button>
-          <button class="filter-chip" data-filter="atrasado">Atrasados 🔴</button>
-        </div>
-        <input type="text" class="form-control" id="pa-search" placeholder="🔍 Buscar plano..." style="width:200px;">
+        <button class="filter-chip active" data-filter="todos">Todos</button>
+        <button class="filter-chip" data-filter="Aberto">Abertos</button>
+        <button class="filter-chip" data-filter="Em andamento">Em andamento</button>
+        <button class="filter-chip" data-filter="Aguardando aprovação">Ag. aprovação</button>
+        <button class="filter-chip" data-filter="Concluído">Concluídos</button>
+        <button class="filter-chip" data-filter="atrasado">Atrasados 🔴</button>
       </div>
 
       <div id="pa-lista"></div>
