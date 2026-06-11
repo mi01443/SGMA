@@ -55,7 +55,7 @@ if (document.getElementById('login-form')) {
     // Se já tem sessão, redireciona
     const session = Auth.getSession();
     if (session) {
-      window.location.href = session.perfil === 'admin' ? 'admin.html' : 'app.html';
+      window.location.href = 'home.html';
     }
 
     const form    = document.getElementById('login-form');
@@ -75,7 +75,7 @@ if (document.getElementById('login-form')) {
       try {
         const res  = await API.login(usuario, senha);
         Auth.setSession(res.usuario, res.token);
-        window.location.href = res.usuario.perfil === 'admin' ? 'admin.html' : 'app.html';
+        window.location.href = 'home.html';
       } catch (err) {
         errEl.textContent = 'Usuário ou senha inválidos.';
         btnEl.disabled = false;
