@@ -81,6 +81,11 @@
     const profId     = _isSup ? (Utils.el('tr-filtro-prof')?.value || '') : _session.id;
     const modalidade = Utils.el('tr-filtro-modal')?.value || 'todos';
 
+    // Supervisor/admin sem profissional selecionado → overview da equipe
+    if (_isSup && !profId) {
+      return renderOverviewTR(silent, modalidade);
+    }
+
     // No refresh silencioso, não mostrar loading (evita piscar)
     if (!silent) {
       container.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">Carregando...</div>';
@@ -159,7 +164,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">
           ${_isSup ? `
           <select class="form-control" id="tr-filtro-prof" style="max-width:220px;">
-            <option value="">Selecione o profissional</option>
+            <option value="">📊 Visão geral da equipe</option>
             ${profissionais.map(p=>`<option value="${p.id}" ${String(p.id)===String(profId)?'selected':''}>${p.nome}</option>`).join('')}
           </select>` : ''}
           <select class="form-control" id="tr-filtro-modal" style="max-width:180px;">
@@ -213,6 +218,152 @@
     } catch(e) {
       container.innerHTML = `<div class="alert alert-danger">Erro: ${e.message}</div>`;
     }
+  }
+
+  // ════════════════════════════════════════
+  // OVERVIEW — visão geral da equipe (supervisor/admin)
+  // ════════════════════════════════════════
+  async function renderOverviewTR(silent, modalidade) {
+    const container = Utils.el('tr-dashboard');
+    if (!silent) {
+      container.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">Carregando visão geral...</div>';
+    }
+    try {
+      const ativos = profissionais.filter(p => String(p.ativo).toLowerCase() !== 'false');
+
+      // Buscar dashboard + histórico técnico de cada profissional em paralelo
+      const results = await Promise.all(ativos.map(async p => {
+        const [dashRes, histRes] = await Promise.all([
+          API.getDashboardTR({ profissional_id: p.id, funcao: p.funcao || '' }),
+          API.getHistoricoTecnicoTR({ profissional_id: p.id }),
+        ]);
+
+        const itensMatriz = (dashRes.itens || []).map(i => ({ ...i, _modalidade: 'segurança' }));
+
+        // Histórico técnico → status calculado
+        const histList = histRes.historico || [];
+        const hoje = new Date();
+        const histMap = {};
+        histList.forEach(h => {
+          const tid = String(h.treinamento_id);
+          if (!histMap[tid] || h.dt_realizacao > histMap[tid].dt_realizacao) histMap[tid] = h;
+        });
+        const itensTec = Object.values(histMap).map(h => {
+          const tr = catalogo.find(t => String(t.id) === String(h.treinamento_id));
+          const valDias = parseInt(tr?.validade_dias) || 0;
+          let status = 'valido', dias_diff = null;
+          if (valDias > 0 && h.dt_realizacao) {
+            const dtV = new Date(h.dt_realizacao); dtV.setDate(dtV.getDate() + valDias);
+            dias_diff = Math.ceil((dtV - hoje) / 86400000);
+            status = dias_diff < 0 ? 'vencido' : dias_diff <= 30 ? 'a_vencer' : 'valido';
+          }
+          return { nome: tr?.nome || h.treinamento_id, status, dias_diff, obrigatorio:'false', _modalidade:'técnico' };
+        });
+
+        let itens = [...itensMatriz, ...itensTec];
+        if (modalidade === 'segurança') itens = itensMatriz;
+        if (modalidade === 'técnico')   itens = itensTec;
+
+        return { prof: p, itens };
+      }));
+
+      // KPIs globais
+      let totalVencidos = 0, totalAVencer = 0, totalValidos = 0, totalPendentes = 0;
+      results.forEach(r => r.itens.forEach(i => {
+        if (i.status === 'vencido')  totalVencidos++;
+        if (i.status === 'a_vencer') totalAVencer++;
+        if (i.status === 'valido')   totalValidos++;
+        if (i.status === 'pendente') totalPendentes++;
+      }));
+
+      // Ordenar: quem tem mais vencidos primeiro
+      results.sort((a,b) => {
+        const va = a.itens.filter(i=>i.status==='vencido').length;
+        const vb = b.itens.filter(i=>i.status==='vencido').length;
+        if (va !== vb) return vb - va;
+        const aa = a.itens.filter(i=>i.status==='a_vencer').length;
+        const ab = b.itens.filter(i=>i.status==='a_vencer').length;
+        return ab - aa;
+      });
+
+      container.innerHTML = `
+        <!-- Filtros -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">
+          <select class="form-control" id="tr-filtro-prof" style="max-width:220px;">
+            <option value="">📊 Visão geral da equipe</option>
+            ${profissionais.map(p=>`<option value="${p.id}">${p.nome}</option>`).join('')}
+          </select>
+          <select class="form-control" id="tr-filtro-modal" style="max-width:180px;">
+            <option value="todos"     ${modalidade==='todos'     ?'selected':''}>🔍 Todos</option>
+            <option value="segurança" ${modalidade==='segurança' ?'selected':''}>🦺 Segurança / ASO</option>
+            <option value="técnico"   ${modalidade==='técnico'   ?'selected':''}>⚙️ Técnicos</option>
+          </select>
+        </div>
+
+        <!-- KPI cards globais -->
+        <div class="stat-cards mb-3">
+          <div class="stat-card" style="border-top:3px solid var(--danger);">
+            <div class="stat-card-label">Vencidos</div>
+            <div class="stat-card-value" style="color:var(--danger);">${totalVencidos}</div>
+            <div class="stat-card-sub">na equipe toda</div>
+          </div>
+          <div class="stat-card" style="border-top:3px solid var(--warning);">
+            <div class="stat-card-label">A vencer</div>
+            <div class="stat-card-value" style="color:var(--warning);">${totalAVencer}</div>
+            <div class="stat-card-sub">próximos 30 dias</div>
+          </div>
+          <div class="stat-card" style="border-top:3px solid var(--success);">
+            <div class="stat-card-label">Válidos</div>
+            <div class="stat-card-value" style="color:var(--success);">${totalValidos}</div>
+            <div class="stat-card-sub">em dia</div>
+          </div>
+          <div class="stat-card" style="border-top:3px solid var(--gray-400);">
+            <div class="stat-card-label">Pendentes</div>
+            <div class="stat-card-value" style="color:var(--gray-500);">${totalPendentes}</div>
+            <div class="stat-card-sub">não realizados</div>
+          </div>
+        </div>
+
+        <!-- Lista por profissional -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">👥 Equipe — ${ativos.length} profissionais</span>
+          </div>
+          ${results.map(r => renderOverviewProfRow(r)).join('')}
+        </div>`;
+
+      // Bind filtros
+      Utils.el('tr-filtro-prof')?.addEventListener('change', () => renderDashboardTR());
+      Utils.el('tr-filtro-modal')?.addEventListener('change', () => renderDashboardTR());
+
+    } catch(e) {
+      container.innerHTML = `<div class="alert alert-danger">Erro: ${e.message}</div>`;
+    }
+  }
+
+  function renderOverviewProfRow(r) {
+    const { prof, itens } = r;
+    const vencidos  = itens.filter(i=>i.status==='vencido').length;
+    const aVencer   = itens.filter(i=>i.status==='a_vencer').length;
+    const validos   = itens.filter(i=>i.status==='valido').length;
+    const pendentes = itens.filter(i=>i.status==='pendente').length;
+
+    const corDot = vencidos ? 'var(--danger)' : aVencer ? 'var(--warning)' : pendentes ? 'var(--gray-400)' : 'var(--success)';
+
+    return `<div class="tr-overview-row" onclick="selecionarProfTR('${prof.id}')">
+      <div class="tr-overview-dot" style="background:${corDot};"></div>
+      <div class="tr-overview-body">
+        <div class="tr-overview-nome">${prof.nome}</div>
+        <div class="tr-overview-funcao">${prof.funcao || '—'}</div>
+      </div>
+      <div class="tr-overview-badges">
+        ${vencidos  ? `<span class="tr-status-badge tr-status-vencido">🔴 ${vencidos}</span>` : ''}
+        ${aVencer   ? `<span class="tr-status-badge tr-status-avencer">🟡 ${aVencer}</span>` : ''}
+        ${pendentes ? `<span class="tr-status-badge tr-status-pendente">⬜ ${pendentes}</span>` : ''}
+        ${!vencidos && !aVencer && !pendentes ? `<span class="tr-status-badge tr-status-valido">🟢 OK</span>` : ''}
+      </div>
+      <div class="tr-overview-arrow">→</div>
+    </div>`;
   }
 
   function renderItemDash(i, profId) {
@@ -319,6 +470,12 @@
 
     Utils.el('tr-filtro-funcao')?.addEventListener('change', () => renderMatrizTR());
   }
+
+  window.selecionarProfTR = (profId) => {
+    const sel = document.getElementById('tr-filtro-prof');
+    if (sel) { sel.value = profId; }
+    renderDashboardTR();
+  };
 
   window.deleteMatrizItemTR = async (id) => {
     if (!confirm('Remover este treinamento da matriz?')) return;
