@@ -450,3 +450,29 @@
   .tr-hist-right  { min-width:60px; }
   .tr-hist-card   { gap:8px; }
 }
+
+/* ═══════════════════════════════════════
+   TREINAMENTOS — OVERVIEW DA EQUIPE
+═══════════════════════════════════════ */
+.tr-overview-row {
+  display:flex; align-items:center; gap:12px;
+  padding:12px 4px; border-bottom:1px solid var(--gray-100);
+  cursor:pointer; transition:background .15s;
+}
+.tr-overview-row:last-child { border-bottom:none; }
+.tr-overview-row:hover { background:var(--gray-50); }
+
+.tr-overview-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.tr-overview-body { flex:1; min-width:0; }
+.tr-overview-nome { font-size:.875rem; font-weight:700; color:var(--gray-800); }
+.tr-overview-funcao { font-size:.72rem; color:var(--gray-400); }
+.tr-overview-badges { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+.tr-overview-arrow { color:var(--gray-300); font-size:1rem; flex-shrink:0; }
+
+@media (max-width:640px) {
+  .tr-overview-row { padding:10px 0; gap:8px; }
+  .tr-overview-nome { font-size:.8rem; }
+  .tr-overview-funcao { font-size:.65rem; }
+  .tr-status-badge { font-size:.65rem; padding:2px 7px; }
+  .tr-overview-arrow { display:none; }
+}
