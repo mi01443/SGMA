@@ -97,7 +97,7 @@
 
       // Buscar dados em paralelo: matriz/segurança + histórico técnico
       const [dashRes, histRes] = await Promise.all([
-        API.getDashboardTR({ profissional_id: pid, funcao }),
+        API.getDashboardTR({ profissional_id: pid, funcao, perfil: _session?.perfil }),
         API.getHistoricoTecnicoTR({ profissional_id: pid }),
       ]);
 
@@ -229,7 +229,9 @@
       container.innerHTML = '<div class="text-muted text-sm" style="padding:1rem;">Carregando visão geral...</div>';
     }
     try {
-      const ativos = profissionais.filter(p => String(p.ativo).toLowerCase() !== 'false');
+      const ativos = profissionais.filter(p =>
+        String(p.ativo).toLowerCase() !== 'false' && String(p.perfil) !== 'admin'
+      );
 
       // Buscar dashboard + histórico técnico de cada profissional em paralelo
       const results = await Promise.all(ativos.map(async p => {
@@ -667,8 +669,9 @@
     document.getElementById('tr-reg-prof').value     = profId || _session.id;
     document.getElementById('tr-reg-treina').value   = trId || '';
     document.getElementById('tr-reg-id').value       = regId || '';
-    document.getElementById('tr-reg-data').value     = '';
-    document.getElementById('tr-reg-carga').value    = '';
+    document.getElementById('tr-reg-data').value      = '';
+    document.getElementById('tr-reg-vencimento').value = '';
+    document.getElementById('tr-reg-carga').value     = '';
     document.getElementById('tr-reg-instrutor').value= '';
     document.getElementById('tr-reg-local').value    = '';
     document.getElementById('tr-reg-obs').value      = '';
@@ -693,6 +696,7 @@
         profissional_id: document.getElementById('tr-reg-prof').value,
         treinamento_id:  document.getElementById('tr-reg-treina').value,
         dt_realizacao:   document.getElementById('tr-reg-data').value,
+        dt_vencimento:   document.getElementById('tr-reg-vencimento').value,
         carga_horaria:   document.getElementById('tr-reg-carga').value,
         instrutor:       document.getElementById('tr-reg-instrutor').value,
         local:           document.getElementById('tr-reg-local').value,
