@@ -97,7 +97,7 @@
 
       // Buscar dados em paralelo: matriz/segurança + histórico técnico
       const [dashRes, histRes] = await Promise.all([
-        API.getDashboardTR({ profissional_id: pid, funcao, perfil: _session?.perfil }),
+        API.getDashboardTR({ profissional_id: pid, funcao, perfil: prof?.perfil || '' }),
         API.getHistoricoTecnicoTR({ profissional_id: pid }),
       ]);
 
