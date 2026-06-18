@@ -24,7 +24,7 @@ const API = (() => {
     // Gestão da Equipe — uma URL por módulo (Code_Ferias.gs, Code_DDS.gs...)
     FERIAS_SCRIPT_URL:   'https://script.google.com/macros/s/AKfycbyx_m_qM3h5rgVRMOZ_Ot6FBCBUFYMd1LjbkZF0BnEd2Qm5XEaZ6G7B59wyRFFbxMGJQQ/exec',
     DDS_SCRIPT_URL:      'https://script.google.com/macros/s/SEU_DDS_DEPLOYMENT_ID/exec',
-    TREINA_SCRIPT_URL:   'https://script.google.com/macros/s/AKfycbzPHCdqkTDfQCETfMhj5VBKccjaHQjFCkoszKQFJ8PrdVk7ArcX5_8Yxl-AnnpyH3MFTw/exec',
+    TREINA_SCRIPT_URL:   'https://script.google.com/macros/s/AKfycbwNMQqkGK41BpZEJy8bLsO_vg4sDzBb6G2uDtWmhtD0PPHL-hD5a7-saw6HosbCusZoyg/exec',
     ESCALAS_SCRIPT_URL:  'https://script.google.com/macros/s/SEU_ESCALAS_DEPLOYMENT_ID/exec',
     FOLGAS_SCRIPT_URL:   'https://script.google.com/macros/s/SEU_FOLGAS_DEPLOYMENT_ID/exec',
     ATEST_SCRIPT_URL:    'https://script.google.com/macros/s/SEU_ATEST_DEPLOYMENT_ID/exec',
