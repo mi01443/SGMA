@@ -669,7 +669,6 @@
     document.getElementById('tr-reg-prof').value     = profId || _session.id;
     document.getElementById('tr-reg-treina').value   = trId || '';
     document.getElementById('tr-reg-id').value       = regId || '';
-    document.getElementById('tr-reg-data').value      = '';
     document.getElementById('tr-reg-vencimento').value = '';
     document.getElementById('tr-reg-carga').value     = '';
     document.getElementById('tr-reg-instrutor').value= '';
@@ -692,10 +691,12 @@
     const btn = document.getElementById('btn-salvar-tr-reg');
     btn.disabled = true;
     try {
+      // dt_realizacao = hoje (campo removido da UI)
+      const dtHoje = new Date().toISOString().slice(0,10);
       await API.saveRegistroTR({
         profissional_id: document.getElementById('tr-reg-prof').value,
         treinamento_id:  document.getElementById('tr-reg-treina').value,
-        dt_realizacao:   document.getElementById('tr-reg-data').value,
+        dt_realizacao:   dtHoje,
         dt_vencimento:   document.getElementById('tr-reg-vencimento').value,
         carga_horaria:   document.getElementById('tr-reg-carga').value,
         instrutor:       document.getElementById('tr-reg-instrutor').value,
