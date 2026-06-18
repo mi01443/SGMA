@@ -391,16 +391,10 @@
         <label class="form-label">Treinamento <span>*</span></label>
         <select id="tr-reg-treina" class="form-control" required></select>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Data de realização <span>*</span></label>
-          <input type="date" id="tr-reg-data" class="form-control" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Data de vencimento</label>
-          <input type="date" id="tr-reg-vencimento" class="form-control"
-            placeholder="Deixe em branco se não vence">
-        </div>
+      <div class="form-group">
+        <label class="form-label">Data de vencimento <span style="font-weight:400;color:var(--gray-400);">— deixe em branco se não vence</span></label>
+        <input type="date" id="tr-reg-vencimento" class="form-control">
+        <input type="hidden" id="tr-reg-data" value="">
       </div>
       <div class="form-row">
         <div class="form-group">
