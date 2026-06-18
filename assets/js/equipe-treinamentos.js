@@ -236,7 +236,7 @@
       // Buscar dashboard + histórico técnico de cada profissional em paralelo
       const results = await Promise.all(ativos.map(async p => {
         const [dashRes, histRes] = await Promise.all([
-          API.getDashboardTR({ profissional_id: p.id, funcao: p.funcao || '' }),
+          API.getDashboardTR({ profissional_id: p.id, funcao: p.funcao || '', perfil: p.perfil || '' }),
           API.getHistoricoTecnicoTR({ profissional_id: p.id }),
         ]);
 
